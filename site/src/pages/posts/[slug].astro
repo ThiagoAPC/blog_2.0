@@ -5,7 +5,6 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import TOC from '../../components/TOC.astro';
 import TagPill from '../../components/TagPill.astro';
 import Callout from '../../components/Callout.astro';
-import Mermaid from '../../components/Mermaid.astro';
 import { formatDate } from '../../utils/date';
 import { url } from '../../utils/url';
 
@@ -83,10 +82,10 @@ const { title, description, pubDate, updatedDate, tags, readingTime } = post.dat
 
     <!-- Post content -->
     <div class="prose max-w-none" data-pagefind-body>
-      <Content components={{ Callout, Mermaid }} />
+      <Content components={{ Callout }} />
     </div>
 
-    <!-- Copy code button injection + Mermaid dark sync -->
+    <!-- Copy code button injection -->
     <script is:inline>
       // Copy-code button on all code blocks
       document.querySelectorAll('pre').forEach((pre) => {

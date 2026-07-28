@@ -10,26 +10,26 @@
    bg-cream, text-rust, border-wire, etc.
    ============================================================ */
 @theme {
-  /* Backgrounds */
-  --color-cream: #F5F0E6;
-  --color-night: #090D16;
+  /* Backgrounds — Ink Wash */
+  --color-cream: #F8F8F8;
+  --color-night: #252525;
 
   /* Text */
-  --color-ink: #0F172A;
-  --color-muted: #6B7280;
-  --color-snow: #E2E8F0;
+  --color-ink: #252525;
+  --color-muted: #7D7D7D;
+  --color-snow: #CFCFCF;
 
-  /* Accent */
-  --color-rust: #B91C1C;
-  --color-rust-deep: #991B1B;
+  /* Accent (monochrome) */
+  --color-rust: #545454;
+  --color-rust-deep: #252525;
 
   /* Borders & dividers */
-  --color-wire: #E2D9CC;
-  --color-void: #1E293B;
+  --color-wire: #CFCFCF;
+  --color-void: #333333;
 
   /* Code blocks */
-  --color-codebg: #F8F5F0;
-  --color-codebg-dark: #0D1117;
+  --color-codebg: #F0F0F0;
+  --color-codebg-dark: #1C1C1C;
 
   /* Fonts */
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
