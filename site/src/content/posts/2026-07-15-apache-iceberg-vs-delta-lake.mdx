@@ -32,16 +32,16 @@ o Data Lake em um banco de dados colunar distribuído.
 <Mermaid>
 graph TB
     subgraph Iceberg["Apache Iceberg"]
-        I1[Catalog\nHive/Glue/Nessie] --> I2[Metadata Layer\n.metadata.json]
-        I2 --> I3[Manifest Lists\n.avro]
-        I3 --> I4[Manifest Files\n.avro]
-        I4 --> I5[Data Files\n.parquet / .orc]
+        I1["Catalog<br/>Hive/Glue/Nessie"] --> I2["Metadata Layer<br/>.metadata.json"]
+        I2 --> I3["Manifest Lists<br/>.avro"]
+        I3 --> I4["Manifest Files<br/>.avro"]
+        I4 --> I5["Data Files<br/>.parquet / .orc"]
     end
 
     subgraph Delta["Delta Lake"]
-        D1[Delta Log\n_delta_log/] --> D2[JSON Commits\n00000.json]
-        D2 --> D3[Checkpoint Files\n.parquet]
-        D3 --> D4[Data Files\n.parquet]
+        D1["Delta Log<br/>_delta_log/"] --> D2["JSON Commits<br/>00000.json"]
+        D2 --> D3["Checkpoint Files<br/>.parquet"]
+        D3 --> D4["Data Files<br/>.parquet"]
     end
 
     style Iceberg fill:#1E293B,color:#E2E8F0,stroke:#B91C1C
