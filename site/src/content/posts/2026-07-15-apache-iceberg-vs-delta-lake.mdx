@@ -1,0 +1,151 @@
+---
+title: "Apache Iceberg vs Delta Lake: Qual Escolher para seu Lakehouse?"
+description: "Comparativo técnico aprofundado entre os dois formatos de tabela open-source mais populares para Data Lakehouses — arquitetura, performance, ecossistema e casos de uso."
+pubDate: 2026-07-15
+tags: ["iceberg", "delta-lake", "lakehouse", "spark", "arquitetura"]
+featured: true
+lang: pt
+---
+
+import Callout from '../../components/Callout.astro';
+import Mermaid from '../../components/Mermaid.astro';
+
+A escolha entre Apache Iceberg e Delta Lake é uma das decisões arquiteturais mais importantes ao
+construir um moderno Data Lakehouse. Ambos resolvem o mesmo problema fundamental — trazer
+confiabilidade transacional para arquivos no Data Lake — mas com abordagens bem diferentes.
+
+## O Problema que Ambos Resolvem
+
+Arquivos Parquet em S3 são imutáveis. Atualizar um registro significa reescrever arquivos inteiros.
+Sem uma camada de metadados transacional, você enfrenta:
+
+- **Leituras inconsistentes** durante escritas (sem isolamento snapshot)
+- **Schema evolution** manual e propensa a erros
+- **Time travel** impossível ou extremamente custoso
+- **Small files problem** que degrada performance de leitura
+
+Iceberg e Delta Lake adicionam uma camada de **transaction log** sobre o storage, transformando
+o Data Lake em um banco de dados colunar distribuído.
+
+## Arquitetura Comparada
+
+<Mermaid>
+graph TB
+    subgraph Iceberg["Apache Iceberg"]
+        I1[Catalog\nHive/Glue/Nessie] --> I2[Metadata Layer\n.metadata.json]
+        I2 --> I3[Manifest Lists\n.avro]
+        I3 --> I4[Manifest Files\n.avro]
+        I4 --> I5[Data Files\n.parquet / .orc]
+    end
+
+    subgraph Delta["Delta Lake"]
+        D1[Delta Log\n_delta_log/] --> D2[JSON Commits\n00000.json]
+        D2 --> D3[Checkpoint Files\n.parquet]
+        D3 --> D4[Data Files\n.parquet]
+    end
+
+    style Iceberg fill:#1E293B,color:#E2E8F0,stroke:#B91C1C
+    style Delta fill:#1E293B,color:#E2E8F0,stroke:#3B82F6
+</Mermaid>
+
+## Comparativo Técnico Detalhado
+
+| Feature                    | Apache Iceberg               | Delta Lake                     |
+|----------------------------|------------------------------|-------------------------------|
+| **Criador**                | Netflix (2017)               | Databricks (2019)             |
+| **Licença**                | Apache 2.0                   | Apache 2.0                    |
+| **Transaction Log**        | Avro manifests               | JSON + Parquet checkpoints    |
+| **Schema Evolution**       | Full (add, drop, rename, reorder) | Add/rename columns only  |
+| **Hidden Partitioning**    | ✅ Sim (partition transforms) | ❌ Não                        |
+| **Multi-engine**           | ✅ Spark, Flink, Trino, Hive | ⚠️ Melhor com Spark/Databricks |
+| **Branching/Tagging**      | ✅ Via Nessie catalog        | ✅ Via Delta Sharing           |
+| **Cloud-native catalog**   | Glue, Nessie, REST catalog   | Unity Catalog (Databricks)    |
+| **Row-level deletes**      | ✅ Copy-on-Write + MOR        | ✅ Copy-on-Write               |
+| **Compaction**             | Manual ou Spark Procedures   | OPTIMIZE + Auto-optimize      |
+| **Z-ordering**             | Sorting + data skipping      | ZORDER BY                     |
+| **Streaming (Flink)**      | ✅ Native                    | ⚠️ Limitado                   |
+
+## Quando Usar Cada Um
+
+### Use Apache Iceberg quando:
+
+```python
+# Cenário: Multi-engine lakehouse com Trino para queries ad-hoc
+# e Spark para transformações pesadas
+
+from pyiceberg.catalog import load_catalog
+
+catalog = load_catalog("glue", **{
+    "type": "glue",
+    "s3.region": "us-east-1",
+})
+
+# Iceberg suporta alterações de schema sem reescrever dados
+table = catalog.load_table("analytics.user_events")
+
+with table.update_schema() as update:
+    update.add_column("session_duration_ms", "long")
+    update.rename_column("user_id", "customer_id")  # ✅ Iceberg suporta rename!
+
+# Time travel nativo
+historical_df = table.scan(
+    snapshot_id=table.history()[5].snapshot_id
+).to_arrow()
+```
+
+### Use Delta Lake quando:
+
+```python
+# Cenário: Stack 100% Spark/Databricks, operações DML frequentes
+# Delta brilha em ambientes Databricks com Auto Optimize
+
+from delta import DeltaTable
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .getOrCreate()
+
+delta_table = DeltaTable.forPath(spark, "s3://datalake/gold/orders")
+
+# MERGE (upsert) — Delta tem implementação muito madura
+(
+    delta_table.alias("target")
+    .merge(
+        source=spark.table("staging.orders").alias("source"),
+        condition="target.order_id = source.order_id"
+    )
+    .whenMatchedUpdateAll()
+    .whenNotMatchedInsertAll()
+    .execute()
+)
+
+# Auto-compaction no Databricks (não disponível em OSS)
+spark.sql("OPTIMIZE delta.`s3://datalake/gold/orders` ZORDER BY (customer_id)")
+```
+
+<Callout type="info" title="Minha recomendação prática">
+  **Iceberg** para stacks multi-cloud/multi-engine onde você precisa de portabilidade.
+  **Delta Lake** se você já está all-in Databricks ou precisa de suporte enterprise com SLA.
+  
+  Em 2026, Iceberg ganhou tração massiva com o suporte nativo no Snowflake, BigQuery e Redshift.
+  Para novos projetos sem vendor lock-in, Iceberg tende a ser a escolha mais segura.
+</Callout>
+
+## Performance: Qual é Mais Rápido?
+
+A resposta honesta: **depende do workload**. Benchmarks internos da Cloudera e Tabular mostram:
+
+- **Reads de queries analíticas (OLAP):** Iceberg ≈ Delta (≤ 5% diferença)
+- **Upserts (MERGE):** Delta ligeiramente mais rápido em Spark < 3.4
+- **Schema evolution com rename:** Iceberg vence (Delta exige reescrever)
+- **Multi-engine queries:** Iceberg vence (Trino/Flink support superior)
+- **Small files compaction:** Delta Auto-optimize é mais conveniente em Databricks
+
+## Conclusão
+
+Não existe resposta errada — ambos são excelentes. A decisão real é sobre **ecossistema** e
+**vendor commitment**, não sobre features técnicas específicas.
+
+Em 2026, com o Open Catalog Initiative e suporte Iceberg nativo em todos os cloud warehouses,
+o momentum está claramente com o Iceberg para novos projetos greenfield.

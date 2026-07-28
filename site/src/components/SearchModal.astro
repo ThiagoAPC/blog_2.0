@@ -1,0 +1,114 @@
+---
+// SearchModal: uses Pagefind after build.
+// In dev mode, shows a friendly message since the index doesn't exist yet.
+const base = import.meta.env.BASE_URL;
+---
+
+<!-- Modal backdrop -->
+<div
+  id="search-modal"
+  class="hidden fixed inset-0 z-50 flex items-start justify-center pt-16 px-4"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Buscar artigos"
+>
+  <!-- Overlay -->
+  <div
+    id="search-overlay"
+    class="absolute inset-0 bg-ink/50 dark:bg-night/70 backdrop-blur-sm"
+  ></div>
+
+  <!-- Panel -->
+  <div class="relative w-full max-w-xl bg-cream dark:bg-night border border-wire dark:border-void rounded-xl shadow-2xl overflow-hidden">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-wire dark:border-void">
+      <span class="text-xs font-semibold uppercase tracking-widest text-muted dark:text-snow/40">
+        Buscar
+      </span>
+      <button
+        id="search-close"
+        aria-label="Fechar busca"
+        class="p-1 text-muted hover:text-rust transition-colors rounded"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Pagefind UI mount point -->
+    <div id="pagefind-search" class="p-4"></div>
+  </div>
+</div>
+
+<!-- Pagefind CSS (generated at build time) -->
+<link rel="stylesheet" href={`${base}pagefind/pagefind-ui.css`} />
+
+<style>
+  /* Override Pagefind UI to match site theme */
+  #pagefind-search {
+    --pagefind-ui-scale: 0.9;
+    --pagefind-ui-primary: var(--color-rust);
+    --pagefind-ui-text: var(--color-ink);
+    --pagefind-ui-background: var(--color-cream);
+    --pagefind-ui-border: var(--color-wire);
+    --pagefind-ui-tag: var(--color-wire);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 0.5rem;
+    --pagefind-ui-font: var(--font-sans);
+  }
+  .dark #pagefind-search {
+    --pagefind-ui-text: var(--color-snow);
+    --pagefind-ui-background: var(--color-night);
+    --pagefind-ui-border: var(--color-void);
+    --pagefind-ui-tag: var(--color-void);
+  }
+</style>
+
+<script define:vars={{ base }}>
+  const modal = document.getElementById('search-modal');
+  const overlay = document.getElementById('search-overlay');
+  const closeBtn = document.getElementById('search-close');
+
+  let pagefindLoaded = false;
+
+  async function loadPagefind() {
+    if (pagefindLoaded) return;
+    pagefindLoaded = true;
+    try {
+      const { PagefindUI } = await import(`${base}pagefind/pagefind-ui.js`);
+      new PagefindUI({
+        element: '#pagefind-search',
+        showImages: false,
+        showEmptyFilters: false,
+        translations: {
+          placeholder: 'Buscar artigos...',
+          zero_results: 'Nenhum resultado para "[SEARCH_TERM]"',
+        },
+      });
+    } catch {
+      const el = document.getElementById('pagefind-search');
+      if (el) el.innerHTML =
+        '<p style="color:var(--color-muted);padding:1rem;font-size:0.875rem;">Execute <code>npm run build</code> para habilitar a busca.</p>';
+    }
+  }
+
+  function openModal() {
+    modal?.classList.remove('hidden');
+    loadPagefind();
+    setTimeout(() => {
+      (modal?.querySelector('input')).focus();
+    }, 80);
+  }
+
+  function closeModal() {
+    modal?.classList.add('hidden');
+  }
+
+  overlay?.addEventListener('click', closeModal);
+  closeBtn?.addEventListener('click', closeModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+  });
+</script>

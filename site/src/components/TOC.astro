@@ -1,0 +1,37 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+const filtered = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+{filtered.length > 2 && (
+  <nav
+    aria-label="Índice do artigo"
+    class="toc my-8 p-4 border border-wire dark:border-void rounded-lg bg-cream dark:bg-night text-sm"
+  >
+    <p class="text-[11px] font-semibold uppercase tracking-widest text-muted dark:text-snow/40 mb-3">
+      Neste artigo
+    </p>
+    <ol class="space-y-1.5">
+      {filtered.map((h) => (
+        <li style={`padding-left: ${(h.depth - 2) * 1}rem`}>
+          <a
+            href={`#${h.slug}`}
+            class="text-muted dark:text-snow/60 hover:text-rust dark:hover:text-rust transition-colors leading-snug"
+          >
+            {h.text}
+          </a>
+        </li>
+      ))}
+    </ol>
+  </nav>
+)}

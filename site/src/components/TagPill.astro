@@ -1,0 +1,16 @@
+---
+import { url } from '../utils/url';
+
+interface Props {
+  tag: string;
+}
+
+const { tag } = Astro.props;
+---
+
+<a
+  href={url(`tags/${tag}`)}
+  class="inline-block text-xs text-muted dark:text-snow/50 hover:text-rust dark:hover:text-rust transition-colors font-mono"
+>
+  #{tag}
+</a>

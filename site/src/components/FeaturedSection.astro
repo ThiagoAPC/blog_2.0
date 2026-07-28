@@ -1,0 +1,35 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import PostCardList from './PostCardList.astro';
+import PostCardGrid from './PostCardGrid.astro';
+
+interface Props {
+  posts: CollectionEntry<'posts'>[];
+  view: 'list' | 'grid';
+}
+
+const { posts, view } = Astro.props;
+
+const featured = posts.filter((p) => p.data.featured);
+if (featured.length === 0) return;
+---
+
+<section class="mb-8">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xs font-semibold uppercase tracking-widest text-muted dark:text-snow/40">
+      ✦ Destaques
+    </h2>
+  </div>
+
+  {view === 'grid' ? (
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {featured.map((post) => <PostCardGrid post={post} />)}
+    </div>
+  ) : (
+    <div class="border border-rust/20 rounded-lg px-4 bg-rust/3 dark:bg-rust/5">
+      {featured.map((post) => <PostCardList post={post} />)}
+    </div>
+  )}
+</section>
+
+<hr class="border-wire dark:border-void mb-8" />

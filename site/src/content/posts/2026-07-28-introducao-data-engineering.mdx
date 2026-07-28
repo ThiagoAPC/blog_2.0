@@ -1,0 +1,136 @@
+---
+title: "Introdução à Engenharia de Dados: Da Teoria à Prática"
+description: "Um panorama completo da Engenharia de Dados moderna — o que é, quais são os principais componentes de um pipeline, e como pensar na arquitetura de dados do zero."
+pubDate: 2026-07-28
+tags: ["data-engineering", "pipelines", "sql", "fundamentos"]
+featured: true
+lang: pt
+---
+
+import Callout from '../../components/Callout.astro';
+import Mermaid from '../../components/Mermaid.astro';
+
+Engenharia de Dados é uma das profissões que mais cresceu na última década. Mas o que exatamente
+um engenheiro de dados *faz*? E por onde começar?
+
+## O que é Engenharia de Dados?
+
+De forma simples: **Engenharia de Dados é a disciplina de construir e manter os sistemas que
+movimentam dados de onde eles são gerados para onde eles precisam ser analisados**.
+
+Enquanto Cientistas de Dados constroem modelos, Engenheiros de Dados constroem a estrada pela
+qual os dados trafegam. Sem essa infraestrutura, análises e modelos de ML simplesmente não
+existem.
+
+<Callout type="tip" title="Analogia">
+  Pense na Engenharia de Dados como a engenharia civil dos dados. Você constrói as estradas,
+  pontes e encanamentos. Os cientistas de dados são os motoristas que usam essa infraestrutura.
+</Callout>
+
+## Os Pilares de um Pipeline Moderno
+
+Um pipeline de dados moderno geralmente segue o padrão **ELT** (Extract, Load, Transform),
+substituindo o antigo ETL. A diferença é sutil, mas poderosa: primeiro carregamos os dados
+brutos no destino, *depois* transformamos.
+
+<Mermaid>
+flowchart LR
+    A[🗄️ Fontes\nAPIs / DBs / Logs] --> B[Extract\nKafka / Airbyte]
+    B --> C[Load\nData Lake\nS3 / GCS]
+    C --> D[Transform\ndbt / Spark]
+    D --> E[Serve\nBigQuery / Redshift]
+    E --> F[📊 Dashboards\n& ML Models]
+
+    style A fill:#B91C1C,color:#fff,stroke:none
+    style E fill:#1E293B,color:#E2E8F0,stroke:none
+</Mermaid>
+
+## Extraindo Dados com SQL
+
+Independentemente das ferramentas, SQL continua sendo a linguagem central do engenheiro de
+dados. Um exemplo de extração incremental (padrão fundamental para evitar reprocessamento):
+
+```sql
+-- Extração incremental: busca apenas registros novos ou modificados
+SELECT
+    order_id,
+    customer_id,
+    order_status,
+    total_amount,
+    created_at,
+    updated_at
+FROM raw.orders
+WHERE updated_at > '{{ last_run_timestamp }}'
+  AND order_status NOT IN ('draft', 'cancelled')
+ORDER BY updated_at ASC
+LIMIT 100000;
+```
+
+<Callout type="warning" title="Cuidado com fusos horários">
+  Sempre armazene timestamps em UTC no Data Warehouse. Fusos horários são a causa de mais de
+  60% dos bugs sutis em pipelines de dados que encontrei na prática.
+</Callout>
+
+## Transformações com Python
+
+Quando SQL não é suficiente, Python entra em cena. Um exemplo de normalização de schema:
+
+```python
+import polars as pl
+from datetime import datetime, timezone
+
+def normalize_orders(raw_path: str) -> pl.DataFrame:
+    """
+    Normaliza o schema de pedidos brutos para o formato
+    padronizado do Data Warehouse.
+    """
+    df = pl.read_parquet(raw_path)
+    
+    return (
+        df
+        .filter(pl.col("order_status").is_in(["completed", "shipped"]))
+        .with_columns([
+            pl.col("total_amount").cast(pl.Decimal(precision=18, scale=2)),
+            pl.col("created_at").str.to_datetime().dt.replace_time_zone("UTC"),
+            pl.col("customer_id").cast(pl.Int64),
+            # Derived column
+            pl.when(pl.col("total_amount") > 1000)
+              .then(pl.lit("high_value"))
+              .otherwise(pl.lit("standard"))
+              .alias("customer_tier"),
+        ])
+        .drop_nulls(subset=["order_id", "customer_id"])
+        .sort("created_at", descending=True)
+    )
+
+if __name__ == "__main__":
+    df = normalize_orders("data/raw/orders_2026_07.parquet")
+    print(f"Linhas processadas: {len(df):,}")
+    print(df.head())
+```
+
+## Qualidade de Dados: A Parte Mais Ignorada
+
+Nenhum pipeline está completo sem validação de qualidade. As principais métricas:
+
+| Dimensão          | O que mede                          | Exemplo de teste               |
+|-------------------|-------------------------------------|-------------------------------|
+| **Completude**    | % de campos não-nulos               | `order_id IS NOT NULL`         |
+| **Unicidade**     | Ausência de duplicatas              | `COUNT(*) = COUNT(DISTINCT id)`|
+| **Consistência**  | Integridade referencial             | FK para `customers` existe     |
+| **Pontualidade**  | Frescor dos dados                   | `MAX(updated_at) > NOW() - 1h` |
+| **Validade**      | Conformidade com regras de negócio  | `total_amount >= 0`            |
+
+## Próximos Passos
+
+Este foi apenas o primeiro post da série sobre Engenharia de Dados. Nos próximos artigos vamos
+mergulhar em:
+
+- **Apache Iceberg vs Delta Lake** — qual escolher para o seu lakehouse?
+- **DuckDB** — analytics local sem infraestrutura
+- **dbt** — transformações versionadas como código
+
+<Callout type="note">
+  Todo o código deste blog está disponível no GitHub. Se encontrar algum erro ou quiser
+  sugerir melhorias, abra uma issue!
+</Callout>

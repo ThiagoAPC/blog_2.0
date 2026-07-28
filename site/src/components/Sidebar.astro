@@ -1,0 +1,72 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { groupByYearMonth } from '../utils/date';
+import { url } from '../utils/url';
+
+interface Props {
+  posts: CollectionEntry<'posts'>[];
+}
+
+const { posts } = Astro.props;
+
+const sorted = [...posts].sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+const groups = groupByYearMonth(sorted);
+
+const currentPeriod =
+  typeof Astro.url !== 'undefined'
+    ? new URL(Astro.url).searchParams.get('periodo') ?? ''
+    : '';
+---
+
+<aside class="w-52 shrink-0 hidden lg:block">
+  <div class="sticky top-20 pr-2">
+    <p class="text-[11px] font-semibold uppercase tracking-widest text-muted dark:text-snow/40 mb-3 px-1">
+      Arquivo
+    </p>
+    <nav class="space-y-0.5">
+      <!-- All posts -->
+      <a
+        href={url('')}
+        class={`block text-sm px-2 py-1 rounded transition-colors ${
+          !currentPeriod
+            ? 'text-rust font-semibold bg-rust/8'
+            : 'text-muted dark:text-snow/55 hover:text-rust hover:bg-rust/5'
+        }`}
+      >
+        Todos os posts
+        <span class="text-xs ml-1 opacity-60">({posts.length})</span>
+      </a>
+
+      <!-- Per year-month -->
+      {groups.map(({ label, key, posts: groupPosts }) => (
+        <a
+          href={`${url('')}?periodo=${encodeURIComponent(key)}`}
+          data-period={key}
+          class="archive-period block text-sm px-2 py-1 rounded transition-colors text-muted dark:text-snow/55 hover:text-rust hover:bg-rust/5"
+        >
+          {label}
+          <span class="text-xs ml-1 opacity-60">({groupPosts.length})</span>
+        </a>
+      ))}
+    </nav>
+  </div>
+</aside>
+
+<script>
+  // Highlight the active period from the URL query param (client-side for SSG)
+  const periodo = new URLSearchParams(window.location.search).get('periodo');
+  const allLink = document.querySelector<HTMLAnchorElement>('aside nav a:first-child');
+
+  if (periodo) {
+    // Deactivate "Todos"
+    allLink?.classList.remove('text-rust', 'font-semibold', 'bg-rust/8');
+    allLink?.classList.add('text-muted', 'dark:text-snow/55', 'hover:text-rust', 'hover:bg-rust/5');
+
+    // Activate the matching period
+    document
+      .querySelector<HTMLAnchorElement>(`[data-period="${periodo}"]`)
+      ?.classList.replace('text-muted', 'text-rust');
+  }
+</script>

@@ -1,0 +1,17 @@
+services:
+  blog-dev:
+    build:
+      context: .
+      target: development
+    ports:
+      - "4321:4321"
+    volumes:
+      # Bind-mount source for instant hot-module replacement
+      - .:/app
+      # Anonymous volume: isolates container node_modules from host OS
+      # (prevents architecture conflicts between Windows host / Linux container)
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true

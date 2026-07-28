@@ -1,0 +1,62 @@
+---
+import { getCollection } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCardList from '../../components/PostCardList.astro';
+import { url } from '../../utils/url';
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const posts = await getCollection('posts', ({ data }) => !data.draft);
+  const tags = [...new Set(posts.flatMap((p) => p.data.tags))];
+
+  return tags.map((tag) => ({
+    params: { tag },
+    props: {
+      tag,
+      posts: posts
+        .filter((p) => p.data.tags.includes(tag))
+        .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
+    },
+  }));
+};
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout
+  title={`#${tag}`}
+  description={`Artigos sobre ${tag} — Late Night Data Thoughts`}
+>
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+
+    <!-- Back -->
+    <a
+      href={url('')}
+      class="inline-flex items-center gap-1.5 text-xs text-muted dark:text-snow/50 hover:text-rust dark:hover:text-rust transition-colors mb-8 group"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="group-hover:-translate-x-0.5 transition-transform" aria-hidden="true">
+        <path d="m15 18-6-6 6-6"/>
+      </svg>
+      Todos os artigos
+    </a>
+
+    <header class="mb-8">
+      <h1 class="text-2xl font-bold text-ink dark:text-snow">
+        <span class="text-muted dark:text-snow/40 font-mono">#</span>{tag}
+      </h1>
+      <p class="text-sm text-muted dark:text-snow/50 mt-1">
+        {posts.length} {posts.length === 1 ? 'artigo' : 'artigos'}
+      </p>
+    </header>
+
+    <div>
+      {posts.map((post) => <PostCardList post={post} />)}
+    </div>
+
+    {posts.length === 0 && (
+      <p class="text-muted dark:text-snow/50 text-sm">
+        Nenhum artigo encontrado para essa tag.
+      </p>
+    )}
+  </div>
+</BaseLayout>

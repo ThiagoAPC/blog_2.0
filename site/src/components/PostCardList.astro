@@ -1,0 +1,57 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import TagPill from './TagPill.astro';
+import { formatDate } from '../utils/date';
+import { url } from '../utils/url';
+
+interface Props {
+  post: CollectionEntry<'posts'>;
+}
+
+const { post } = Astro.props;
+const { title, description, pubDate, tags, readingTime } = post.data;
+const postUrl = url(`posts/${post.slug}`);
+---
+
+<article class="group flex gap-3 py-4 border-b border-wire/60 dark:border-void/60 last:border-0">
+  <!-- Diamond bullet -->
+  <span
+    class="text-rust mt-[3px] text-sm shrink-0 select-none"
+    aria-hidden="true"
+  >◆</span>
+
+  <div class="flex-1 min-w-0">
+    <!-- Title -->
+    <h2 class="font-bold text-base leading-snug">
+      <a
+        href={postUrl}
+        class="text-ink dark:text-snow hover:text-rust dark:hover:text-rust transition-colors group-hover:underline underline-offset-2"
+      >
+        {title}
+      </a>
+    </h2>
+
+    <!-- Tags -->
+    {tags.length > 0 && (
+      <div class="flex flex-wrap gap-1.5 mt-1.5">
+        {tags.map((tag) => <TagPill tag={tag} />)}
+      </div>
+    )}
+
+    <!-- Description -->
+    <p class="mt-1.5 text-sm text-muted dark:text-snow/60 leading-relaxed line-clamp-2">
+      {description}
+    </p>
+
+    <!-- Metadata -->
+    <div class="flex items-center gap-2 mt-2 text-xs text-muted dark:text-snow/40">
+      <time datetime={pubDate.toISOString()}>{formatDate(pubDate)}</time>
+      {readingTime && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span>{readingTime} min de leitura</span>
+        </>
+      )}
+    </div>
+  </div>
+</article>

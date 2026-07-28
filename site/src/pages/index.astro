@@ -1,0 +1,146 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Sidebar from '../components/Sidebar.astro';
+import FeaturedSection from '../components/FeaturedSection.astro';
+import PostCardList from '../components/PostCardList.astro';
+import PostCardGrid from '../components/PostCardGrid.astro';
+import { groupByYearMonth } from '../utils/date';
+
+// Fetch published posts, sorted newest-first
+const allPosts = await getCollection('posts', ({ data }) => !data.draft);
+const posts = allPosts.sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+// Server-side: no URL params available at build time, so JS handles filtering
+const groups = groupByYearMonth(posts);
+---
+
+<BaseLayout title="Início">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex gap-8">
+
+    <!-- Main content -->
+    <div class="flex-1 min-w-0">
+
+      <!-- Toolbar: view toggle -->
+      <div class="flex items-center justify-between mb-6">
+        <p class="text-xs text-muted dark:text-snow/40">
+          <span id="post-count">{posts.length}</span> artigos
+        </p>
+        <div class="flex items-center gap-1 border border-wire dark:border-void rounded-md p-0.5">
+          <button
+            id="view-list"
+            aria-label="Visualização em lista"
+            class="px-2.5 py-1 rounded text-xs font-medium transition-colors bg-ink/8 dark:bg-snow/10 text-ink dark:text-snow"
+          >
+            Lista
+          </button>
+          <button
+            id="view-grid"
+            aria-label="Visualização em grade"
+            class="px-2.5 py-1 rounded text-xs font-medium transition-colors text-muted dark:text-snow/50 hover:text-ink dark:hover:text-snow"
+          >
+            Grade
+          </button>
+        </div>
+      </div>
+
+      <!-- Featured section (list view default) -->
+      <div id="featured-section">
+        <FeaturedSection posts={posts} view="list" />
+      </div>
+
+      <!-- Posts grouped by month -->
+      <div id="posts-container">
+        {groups.map(({ label, key, posts: groupPosts }) => (
+          <section data-period={key} class="period-group mb-8">
+            <h3 class="text-[11px] font-semibold uppercase tracking-widest text-muted dark:text-snow/40 mb-3">
+              {label}
+            </h3>
+
+            <!-- List view (default) -->
+            <div class="list-view">
+              {groupPosts.map((post) => <PostCardList post={post} />)}
+            </div>
+
+            <!-- Grid view (hidden by default) -->
+            <div class="grid-view hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {groupPosts.map((post) => <PostCardGrid post={post} />)}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      {posts.length === 0 && (
+        <p class="text-muted dark:text-snow/50 text-sm py-12 text-center">
+          Nenhum artigo publicado ainda.
+        </p>
+      )}
+    </div>
+
+    <!-- Sidebar -->
+    <Sidebar posts={posts} />
+  </div>
+</BaseLayout>
+
+<script>
+  // ── View toggle (Lista / Grade) ─────────────────────────────────────────
+  const btnList = document.getElementById('view-list')!;
+  const btnGrid = document.getElementById('view-grid')!;
+
+  const ACTIVE = ['bg-ink/8', 'dark:bg-snow/10', 'text-ink', 'dark:text-snow'];
+  const INACTIVE = ['text-muted', 'dark:text-snow/50', 'hover:text-ink', 'dark:hover:text-snow'];
+
+  function setView(mode: 'list' | 'grid') {
+    const isGrid = mode === 'grid';
+
+    document.querySelectorAll('.list-view').forEach(el => el.classList.toggle('hidden', isGrid));
+    document.querySelectorAll('.grid-view').forEach(el => el.classList.toggle('hidden', !isGrid));
+
+    btnList.classList.toggle('bg-ink/8', !isGrid);
+    btnList.classList.toggle('text-ink', !isGrid);
+    btnList.classList.toggle('dark:bg-snow/10', !isGrid);
+    btnList.classList.toggle('dark:text-snow', !isGrid);
+    btnList.classList.toggle('text-muted', isGrid);
+    btnList.classList.toggle('dark:text-snow/50', isGrid);
+
+    btnGrid.classList.toggle('bg-ink/8', isGrid);
+    btnGrid.classList.toggle('text-ink', isGrid);
+    btnGrid.classList.toggle('dark:bg-snow/10', isGrid);
+    btnGrid.classList.toggle('dark:text-snow', isGrid);
+    btnGrid.classList.toggle('text-muted', !isGrid);
+    btnGrid.classList.toggle('dark:text-snow/50', !isGrid);
+
+    localStorage.setItem('view', mode);
+  }
+
+  btnList.addEventListener('click', () => setView('list'));
+  btnGrid.addEventListener('click', () => setView('grid'));
+
+  // Restore saved view
+  const savedView = localStorage.getItem('view') as 'list' | 'grid' | null;
+  if (savedView === 'grid') setView('grid');
+
+  // ── Period filter (from sidebar links) ──────────────────────────────────
+  const params = new URLSearchParams(window.location.search);
+  const periodo = params.get('periodo');
+
+  if (periodo) {
+    const groups = document.querySelectorAll<HTMLElement>('.period-group');
+    let count = 0;
+
+    groups.forEach(g => {
+      const visible = g.dataset.period === periodo;
+      g.style.display = visible ? '' : 'none';
+      if (visible) count += g.querySelectorAll('article').length;
+    });
+
+    const countEl = document.getElementById('post-count');
+    if (countEl) countEl.textContent = String(count);
+
+    // Hide featured section when filtering
+    const featured = document.getElementById('featured-section');
+    if (featured) featured.style.display = 'none';
+  }
+</script>

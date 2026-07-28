@@ -1,0 +1,31 @@
+---
+// Mermaid diagram component.
+// Loads Mermaid.js from CDN only when a diagram is present on the page.
+---
+
+<figure class="my-6 overflow-x-auto">
+  <pre class="mermaid not-prose flex justify-center text-sm">
+    <slot />
+  </pre>
+</figure>
+
+<script>
+  // Dynamically load Mermaid from CDN and initialize
+  const win = window as Window & { __mermaidLoaded?: boolean; mermaid?: any };
+  if (!win.__mermaidLoaded) {
+    win.__mermaidLoaded = true;
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+    script.onload = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      win.mermaid.initialize({
+        startOnLoad: true,
+        theme: isDark ? 'dark' : 'default',
+        themeVariables: isDark
+          ? { primaryColor: '#B91C1C', edgeLabelBackground: '#090D16' }
+          : { primaryColor: '#B91C1C' },
+      });
+    };
+    document.head.appendChild(script);
+  }
+</script>

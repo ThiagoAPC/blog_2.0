@@ -1,0 +1,21 @@
+---
+import { url } from '../utils/url';
+---
+
+<footer class="mt-16 border-t border-wire dark:border-void">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted dark:text-snow/40">
+    <p>
+      © {new Date().getFullYear()}
+      <a
+        href={url('')}
+        class="hover:text-rust transition-colors font-medium"
+      >Late Night Data Thoughts</a>
+      — Feito com <a href="https://astro.build" target="_blank" rel="noopener noreferrer" class="hover:text-rust transition-colors">Astro</a>
+      &amp; <a href="https://tailwindcss.com" target="_blank" rel="noopener noreferrer" class="hover:text-rust transition-colors">Tailwind CSS</a>
+    </p>
+    <nav class="flex gap-4">
+      <a href={url('rss.xml')} class="hover:text-rust transition-colors">RSS</a>
+      <a href="https://github.com/ThiagoAPC/blog_2.0" target="_blank" rel="noopener noreferrer" class="hover:text-rust transition-colors">Código fonte ↗</a>
+    </nav>
+  </div>
+</footer>
