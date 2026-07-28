@@ -21,9 +21,9 @@ A maioria das ferramentas analíticas exige infraestrutura:
 <Mermaid>
 graph LR
     A[Seu Laptop] -->|dados| B[Onde processar?]
-    B -->|antes| C[Spin up Spark\nCluster $$$\n15 min de setup]
-    B -->|antes| D[Upload para BigQuery\n$0.005/GB\nciclo lento]
-    B -->|DuckDB| E[✅ Direto na RAM\ninstantâneo\ngratuito]
+    B -->|antes| C["Spin up Spark<br/>Cluster $$$<br/>15 min de setup"]
+    B -->|antes| D["Upload BigQuery<br/>0.005 USD/GB<br/>ciclo lento"]
+    B -->|DuckDB| E["Direto na RAM<br/>instantaneo<br/>gratuito"]
 
     style E fill:#B91C1C,color:#fff,stroke:none
     style C fill:#374151,color:#9CA3AF,stroke:none

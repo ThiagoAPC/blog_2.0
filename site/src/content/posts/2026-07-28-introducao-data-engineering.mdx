@@ -35,11 +35,11 @@ brutos no destino, *depois* transformamos.
 
 <Mermaid>
 flowchart LR
-    A[🗄️ Fontes\nAPIs / DBs / Logs] --> B[Extract\nKafka / Airbyte]
-    B --> C[Load\nData Lake\nS3 / GCS]
-    C --> D[Transform\ndbt / Spark]
-    D --> E[Serve\nBigQuery / Redshift]
-    E --> F[📊 Dashboards\n& ML Models]
+    A["Fontes<br/>APIs / DBs / Logs"] --> B["Extract<br/>Kafka / Airbyte"]
+    B --> C["Load<br/>Data Lake / S3"]
+    C --> D["Transform<br/>dbt / Spark"]
+    D --> E["Serve<br/>BigQuery / Redshift"]
+    E --> F["Dashboards<br/>e ML Models"]
 
     style A fill:#B91C1C,color:#fff,stroke:none
     style E fill:#1E293B,color:#E2E8F0,stroke:none
