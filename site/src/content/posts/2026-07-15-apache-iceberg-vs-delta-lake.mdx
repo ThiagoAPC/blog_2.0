@@ -8,7 +8,6 @@ lang: pt
 ---
 
 import Callout from '../../components/Callout.astro';
-import Mermaid from '../../components/Mermaid.astro';
 
 A escolha entre Apache Iceberg e Delta Lake é uma das decisões arquiteturais mais importantes ao
 construir um moderno Data Lakehouse. Ambos resolvem o mesmo problema fundamental — trazer
@@ -29,24 +28,11 @@ o Data Lake em um banco de dados colunar distribuído.
 
 ## Arquitetura Comparada
 
-<Mermaid>
-graph TB
-    subgraph Iceberg["Apache Iceberg"]
-        I1[Catalog\nHive/Glue/Nessie] --> I2[Metadata Layer\n.metadata.json]
-        I2 --> I3[Manifest Lists\n.avro]
-        I3 --> I4[Manifest Files\n.avro]
-        I4 --> I5[Data Files\n.parquet / .orc]
-    end
+**Apache Iceberg** — camadas de metadados:
+`Catalog (Hive/Glue/Nessie)` → `Metadata Layer (.metadata.json)` → `Manifest Lists (.avro)` → `Manifest Files (.avro)` → `Data Files (.parquet / .orc)`
 
-    subgraph Delta["Delta Lake"]
-        D1[Delta Log\n_delta_log/] --> D2[JSON Commits\n00000.json]
-        D2 --> D3[Checkpoint Files\n.parquet]
-        D3 --> D4[Data Files\n.parquet]
-    end
-
-    style Iceberg fill:#1E293B,color:#E2E8F0,stroke:#B91C1C
-    style Delta fill:#1E293B,color:#E2E8F0,stroke:#3B82F6
-</Mermaid>
+**Delta Lake** — transaction log centralizado:
+`Delta Log (_delta_log/)` → `JSON Commits (00000.json)` → `Checkpoint Files (.parquet)` → `Data Files (.parquet)`
 
 ## Comparativo Técnico Detalhado
 

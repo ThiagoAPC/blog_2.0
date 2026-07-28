@@ -8,7 +8,6 @@ lang: pt
 ---
 
 import Callout from '../../components/Callout.astro';
-import Mermaid from '../../components/Mermaid.astro';
 
 DuckDB é provavelmente a ferramenta mais subestimada no toolkit de um engenheiro de dados.
 É um banco de dados analítico *in-process* — sem servidor, sem configuração, sem cluster —
@@ -18,17 +17,11 @@ que roda direto no seu laptop e processa centenas de gigabytes em segundos.
 
 A maioria das ferramentas analíticas exige infraestrutura:
 
-<Mermaid>
-graph LR
-    A[Seu Laptop] -->|dados| B[Onde processar?]
-    B -->|antes| C[Spin up Spark\nCluster $$$\n15 min de setup]
-    B -->|antes| D[Upload para BigQuery\n$0.005/GB\nciclo lento]
-    B -->|DuckDB| E[✅ Direto na RAM\ninstantâneo\ngratuito]
-
-    style E fill:#B91C1C,color:#fff,stroke:none
-    style C fill:#374151,color:#9CA3AF,stroke:none
-    style D fill:#374151,color:#9CA3AF,stroke:none
-</Mermaid>
+| Abordagem | Custo | Setup | Latência |
+|---|---|---|---|
+| Spark Cluster | $$$ / hora | 15+ min | Alta (grande escala) |
+| BigQuery | US$ 0,005/GB | Ciclo lento | Alta (cloud) |
+| **DuckDB** | **Gratuito** | **Imediato** | **Alta (local)** |
 
 DuckDB elimina o overhead de rede, serialização e cluster management para análises que cabem
 na memória de uma máquina moderna.

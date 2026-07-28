@@ -8,7 +8,6 @@ lang: pt
 ---
 
 import Callout from '../../components/Callout.astro';
-import Mermaid from '../../components/Mermaid.astro';
 
 Engenharia de Dados é uma das profissões que mais cresceu na última década. Mas o que exatamente
 um engenheiro de dados *faz*? E por onde começar?
@@ -33,17 +32,16 @@ Um pipeline de dados moderno geralmente segue o padrão **ELT** (Extract, Load, 
 substituindo o antigo ETL. A diferença é sutil, mas poderosa: primeiro carregamos os dados
 brutos no destino, *depois* transformamos.
 
-<Mermaid>
-flowchart LR
-    A[🗄️ Fontes\nAPIs / DBs / Logs] --> B[Extract\nKafka / Airbyte]
-    B --> C[Load\nData Lake\nS3 / GCS]
-    C --> D[Transform\ndbt / Spark]
-    D --> E[Serve\nBigQuery / Redshift]
-    E --> F[📊 Dashboards\n& ML Models]
-
-    style A fill:#B91C1C,color:#fff,stroke:none
-    style E fill:#1E293B,color:#E2E8F0,stroke:none
-</Mermaid>
+<figure class="my-6">
+  <img
+    src="/blog_2.0/images/etl_example.png"
+    alt="Diferença entre ETL e ELT: no ETL os dados são transformados antes de carregar; no ELT são carregados primeiro e transformados no destino"
+    class="rounded-lg w-full"
+  />
+  <figcaption class="text-center text-xs text-muted dark:text-snow/40 mt-2">
+    ETL vs ELT — o padrão moderno inverte a ordem de transformação
+  </figcaption>
+</figure>
 
 ## Extraindo Dados com SQL
 
