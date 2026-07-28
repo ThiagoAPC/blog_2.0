@@ -1,48 +1,49 @@
-# 🌙 Late Night Data Thoughts — v2.0
+# Late Night Data Thoughts — v2.0
 
-> *A modern, minimal, and content-first blog about Data Engineering, Pipelines, Distributed Systems, and Software Craftsmanship.*
-
----
-
-## 🎯 Why Modernize? (Motivation & Lessons Learned)
-
-The previous version of this blog suffered from common limitations found in off-the-shelf documentation frameworks like Docusaurus:
-
-* ❌ **Rigid & Generic Design:** Pre-packaged documentation layouts that felt like a software manual rather than a personal engineering journal.
-* ❌ **Customization Friction:** High complexity to change layout structures, pagination, or implement clean typography.
-* ❌ **Heavy Footprint:** Unnecessary JavaScript bloat for a content-focused site.
-
-### 💡 The Solution (v2 Architecture)
-This complete rewrite shifts to an **Astro + Tailwind CSS + MDX** stack inspired by classic, high-contrast developer blogs (*AkitaOnRails* style):
-
-* ⚡ **Zero-JS by Default:** Astro builds static, pure HTML pages for sub-second loading speeds.
-* 🎨 **Total Styling Freedom:** Unconstrained layout design with Tailwind CSS — clean typography, pure white/black themes, and seamless Dark Mode.
-* 📊 **Data-Engineered Content:** Built-in support for **Mermaid.js** (for DAGs & architecture diagrams) and **Shiki** (for exact code syntax highlighting in SQL, Python, Scala, Rust, and Terraform).
-* 📝 **Frictionless Publishing:** Adding a post is as simple as dropping a `.mdx` file into `src/content/posts/`.
+> *Um blog minimalista focado em conteúdo sobre Engenharia de Dados, Pipelines, Sistemas Distribuídos, Arquitetura de Dados e Engenharia de Software.*
 
 ---
 
-## 🏗️ Tech Stack
+## Motivação e Arquitetura
 
-| Layer | Technology |
+A versão anterior deste blog apresentava limitações comuns a frameworks de documentação padronizados (como o Docusaurus):
+
+* **Design Rígido e Genérico:** Layouts pré-formatados que se assemelhavam mais a manuais de software do que a um diário pessoal de engenharia.
+* **Fricção na Customização:** Alta complexidade para modificar estruturas de página, paginação e tipografia.
+* **Sobrecarga de Scripts:** Execução desnecessária de JavaScript para uma plataforma primariamente voltada à leitura.
+
+### Solução Proposta (v2)
+
+Esta reescrita migra a plataforma para uma pilha baseada em **Astro + Tailwind CSS + MDX**, priorizando alto contraste, legibilidade e performance (inspirada na estrutura do *AkitaOnRails*):
+
+* **HTML Estático por Padrão:** O Astro gera páginas estáticas puras, garantindo tempo de carregamento em milissegundos e consumo mínimo de recursos no cliente.
+* **Controle Total de Estilização:** Utilização do Tailwind CSS para um design limpo, tipografia precisa, suporte a Dark Mode e ausência de elementos visuais desnecessários.
+* **Suporte Nativo a Código e Diagramas:** Integração com **Mermaid.js** (para arquiteturas de dados, DAGs e fluxos ETL) e **Shiki** (para destaque de sintaxe em SQL, Python, Scala, Rust e Terraform).
+* **Fluxo de Publicação Simplificado:** A criação de novos artigos é realizada via inclusão de arquivos `.mdx` no diretório `src/content/posts/`.
+
+---
+
+## Stack Tecnológica
+
+| Camada | Tecnologia |
 | :--- | :--- |
 | **Framework** | Astro 5.x (Static Site Generation) |
-| **Styling** | Tailwind CSS v4 |
-| **Content** | MDX + Content Collections |
-| **Diagrams & Code** | Mermaid.js + Shiki |
-| **Local Dev** | Docker & Docker Compose |
-| **CI/CD & Hosting** | GitHub Actions ➔ GitHub Pages (100% Free) |
+| **Estilização** | Tailwind CSS v4 |
+| **Gerenciamento de Conteúdo** | MDX + Content Collections |
+| **Diagramas e Código** | Mermaid.js + Shiki |
+| **Ambiente de Desenvolvimento** | Docker & Docker Compose |
+| **CI/CD e Hospedagem** | GitHub Actions ➔ GitHub Pages |
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## Execução Local
 
-Run the environment locally via Docker without worrying about Node versioning:
+Para executar o ambiente localmente em container, sem necessidade de instalar dependências do Node na máquina host:
 
 ```bash
-# Clone the repository
-git clone [https://github.com/your-username/late-night-data-thoughts.git](https://github.com/your-username/late-night-data-thoughts.git)
+# Clonar o repositório
+git clone [https://github.com/seu-usuario/late-night-data-thoughts.git](https://github.com/seu-usuario/late-night-data-thoughts.git)
 cd late-night-data-thoughts
 
-# Spin up local dev server with hot-reloading
+# Subir o servidor de desenvolvimento local
 docker compose up
