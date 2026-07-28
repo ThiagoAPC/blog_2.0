@@ -33,7 +33,7 @@ const base = import.meta.env.BASE_URL;
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
     <!-- SEO -->
-    <title>{title} — Late Night Data Thoughts</title>
+    <title>{title === 'Late Night Data Thoughts' ? title : `${title} — Late Night Data Thoughts`}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL} />
 
@@ -61,6 +61,7 @@ const base = import.meta.env.BASE_URL;
     />
 
     <!-- Favicon -->
+    <link rel="icon" type="image/png" href={`${base}favicon.png`} />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
 
     <!-- Dark mode init: runs before CSS paints to prevent flash of wrong theme -->
