@@ -3,6 +3,10 @@ site/.astro/
 site/dist/
 site/node_modules/
 
+# package-lock.json is platform-specific (Alpine musl vs Ubuntu gnu for Rollup)
+# CI generates its own fresh lockfile — do NOT commit this
+site/package-lock.json
+
 # Environment files — NEVER commit secrets
 .env
 .env.local
