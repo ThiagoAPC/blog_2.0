@@ -7,8 +7,8 @@ import PostCardList from '../components/PostCardList.astro';
 import PostCardGrid from '../components/PostCardGrid.astro';
 import { groupByYearMonth } from '../utils/date';
 
-// Fetch published posts, sorted newest-first
-const allPosts = await getCollection('posts', ({ data }) => !data.draft);
+// Fetch published posts — exclude draft and series children
+const allPosts = await getCollection('posts', ({ data }) => !data.draft && data.seriesPart == null);
 const posts = allPosts.sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
