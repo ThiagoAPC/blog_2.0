@@ -1,0 +1,281 @@
+---
+title: "Dia 5: Subqueries, CTEs e os Operadores EXISTS / NOT EXISTS vs. IN / NOT IN"
+description: "Subqueries correlacionadas e não-correlacionadas, CTEs com WITH e os operadores EXISTS / NOT EXISTS vs. IN / NOT IN aplicados a problemas de negócio no AdventureWorks2022."
+pubDate: 2026-08-06
+tags: ["sqlserver", "sql", "cte", "subqueries", "data-engineering"]
+draft: false
+series: "sql-jornada"
+seriesPart: 5
+---
+
+import Callout from '../../components/Callout.astro';
+
+Hoje vamos prosseguir com os estudos nos direcionando mais pra parte de Subqueries (Correlacionadas vs. Não-Correlacionadas), vamos explorar o que são, como sempre, qual a sintaxe e resolver problemas de negócios.
+
+Vamos estudar também CTEs e treinar o uso dos operadores `EXISTS` / `NOT EXISTS` vs. `IN` / `NOT IN`
+
+### Por que estudar isso?
+
+Esses conteúdos assim somam na parte de filtragem dos dados que nas entrevistas técnicas são sempre muito cobrados, os exercícios, sejam eles de qualquer nível, parecem cobrar muito sobre isso e saber estruturar consultas complexas é obrigatório pra poder ter confiança na hora de encarar um desafio de SQL.
+
+Eu notei que realmente se você mapear bem os padrões de escrita de query, acaba ficando muito mais fácil conseguir resolver os problemas, é quase como se você tivesse o desenho pronto e basta apenas pintar com as cores certas pra fazer sentindo. (Péssima analogia).
+
+Vamos começar vendo (dessa vez com um pouco mais de detalhes), o que é de fato a subquery.
+
+Por definição uma Subquery é uma query dentro de outra query. Ela pode ser aplicada em qualquer parte da consulta principal pra poder trazer os resutados que foram pedidos. Você precisa usar subqueries pelos seguintes motivos:
+
+- Simplificar consultas complexas: ao invés de fazer uma query só muito grande pra poder trazer os dados de uma vez, você quebra ela em subqueries que te trazem partes do resultado que foram gerenciadas individualmente, assim o peso lógico em cima da principal fica menor e com isso mais fácil de manter.
+- Desempenho: essa é a mais óbvia, se você filtra um dado antes de mandar a query principal passar por ele, você diminui o numero de registros que precisam ser processados e com isso sua query principal vai performar melhor.
+- Manipulação de dados relacionais: muitas vezes os dados que você precisa estão espalhados e desorganizados por várias tabelas, usando uma subquery você consegue buscar dados de várias tabelas ao mesmo tempo condensa-los em uma só e usá-los para filtrar registros em outra tabela, sem precisar fazer tudo isso na mesma consulta.
+
+Entre muitos outros motivos, a utilidade delas é alta e fazem parte do vocabulário de qualquer profissional que use SQL.
+
+Nas entrevistas, uma das tarefas mais comuns é filtrar ou calcular dados de uma tabela com base em resultados de outra consulta. Para isso, utilizamos três abordagens principais:
+
+-  Subquery Não-Correlacionada (Independente): é uma subquery que independe da query principal pra poder rodar, ela tem tudo o que precisa pra ser executada e passar seus resultados pra consulta primária:
+
+```sql
+-- Exemplo: Produtos com preço acima da média geral
+SELECT ProductID, Name, ListPrice
+FROM Production.Product
+WHERE ListPrice > (
+-- Essa subquery é Não-Correlacionada pois ela executa e já traz o
+-- que precisa sem a principal ter que passar nada pra ela
+    SELECT AVG(ListPrice) 
+    FROM Production.Product
+);
+```
+
+- Subquery Correlacionada (Dependente): Esse caso é justamente o oposto, o banco precisa ler linha a linha da tabela externa que está sendo montada pra passar a informação correspondente na subquery:
+
+```sql
+-- Exemplo: Produtos cujo preço é maior que a média da SUA PRÓPRIA subcategoria
+SELECT p1.ProductID, p1.Name, p1.ProductSubcategoryID, p1.ListPrice
+FROM Production.Product p1
+WHERE p1.ListPrice > (
+--- Repare que pra calcular essa média ele executou um average na coluna inteira,
+--- mas ele quer apenas a média da subcategoria que foi passada pelo ProductSubcategoryID
+--- que foi definida fora da subquery então o where é dos ids de fora
+--- que batam com os de dentro
+    SELECT AVG(p2.ListPrice)
+    FROM Production.Product p2
+    WHERE p2.ProductSubcategoryID = p1.ProductSubcategoryID -- Conexão Externa x Interna
+);
+```
+
+Essa é a mais chatinha de entender mas basicamente siginifca apenas que o que você vai consultar dentro da subquery depende de algum campo que tem fora da subquery, e aí você precisa relacionar ele com seu correspondente de dentro.
+
+Quando você usa um operador de comparação simples no `WHERE` (como `>`, `<`, `=`), a sua subquery obrigatoriamente precisa retornar **um único valor** (uma linha e uma coluna).
+
+- c. Particularidade: `EXISTS` / `NOT EXISTS` vs. `IN` / `NOT IN`
+
+A gente estava acostumado a usar`NOT IN` pra validar conjuntos de dados de uma tabela mas se usarmos essa mesma lógica pras Subqueries pode acabar dando resultados errados pois se a subconsulta de um `NOT IN` retornar **pelo menos um valor `NULL`**, a consulta inteira pode retornar **0 linhas**, pois a comparação com `NULL` resulta em estado desconhecido (`UNKNOWN`). É melhor usar **`EXISTS` / `NOT EXISTS`**: O operador `EXISTS` faz uma verificação booleana e usa a estratégia de parada precoce (*early-exit*) assim que encontra a primeira correspondência. É mais seguro contra `NULL`s e costuma ser mais performático.
+
+Por Exemplo: 
+
+```sql
+SELECT c.CustomerID
+FROM Sales.Customer c
+WHERE NOT EXISTS (
+    SELECT 1 
+    FROM Sales.SalesOrderHeader soh
+    WHERE soh.CustomerID = c.CustomerID
+);
+```
+
+Essa query acima retorna todos os clientes que estão cadastrados mas nunca compraram. Ela faz isso primeiro fazendo uma consulta em ‘Custumer’ pra verificar os Ids de todos os clientes cadastrados, aí ela usa NOT EXISTS pra ver se desses Ids que ele achou, passe um a um dentro da SalesOrderHeader e veja se tem um bate la e se não tiver **MOSTRE ELE**, ou seja, só me mostre o cliente se o resultado do que estiver dentro dos parênteses for **vazio** (não existir).
+
+Obs: se ficou com dúvida do 1 ali, ele só existe pra cumprir tabela, o comando SELECT demanda que tenha algo pra selecionar mas nesse caso tudo que queremos, é ver se tem uma linha correspondente ou não na tabela, então o 1 só é usado como placeholder pra atender a sintaxe.
+
+Beleza agora vamos pro último conceito antes de começar a praticar:
+
+### O que é uma CTE (Common Table Expression)?
+
+Não é segredo que saber fazer uma CTE é fundamental pra passar em qualquer entrevista e ver ela após subqueries ja facilita bastante de entender porque uma CTE é uma evolução natural de uma Subquery, é uma forma modularizada de trazer dados filtrados pra outras queries. Por definição: uma **CTE** é um conjunto de resultados temporário e nomeado que você pode referenciar dentro de uma instrução `SELECT`, `INSERT`, `UPDATE` ou `DELETE`.
+
+Ela atua como se fosse uma "tabela virtual temporária" que só existe durante a execução daquela consulta. É criada através da cláusula **`WITH`**.
+
+A sintaxe completa é assim:
+
+```sql
+WITH NomeDaCTE AS (
+    -- Consulta interna que gera a tabela temporária
+    SELECT 
+        CustomerID,
+        SUM(TotalDue) AS TotalGasto
+    FROM Sales.SalesOrderHeader
+    GROUP BY CustomerID
+)
+-- Consulta principal que consome a CTE
+SELECT 
+    CustomerID,
+    TotalGasto
+FROM NomeDaCTE
+WHERE TotalGasto > 5000;
+```
+
+Você pode perceber que é como se tivessemos feito um `SELECT` antes de fazermos nosso `SELECT` principal, isso não é atoa, diferente da Subquery que ja está aninhada na query principal a CTE está fora dela, isso significa que se você rodar apenas a query principal enquanto estiver fazendo de dados referenciados da CTE, vai dar erro! Você rodou a principal sem nem ter criado a que alimenta ela…
+
+### Mas por que eu usaria CTEs então?
+
+Em entrevistas técnicas, reescrever subqueries complexas sob a forma de CTEs é um dos sinais mais claros de senioridade e boa prática de código (*o famoso Clean Code*).
+
+Então resumindo em uma tabelinha essas são as vantagens de usar uma CTE ao invés de uma Subquery:
+
+| **Característica** | **Subqueries (Derived Tables)** | **CTEs (WITH ... AS)** |
+| --- | --- | --- |
+| **Legibilidade** | Difícil de ler quando aninhada (*spaghetti code*) | Muito alta; a lógica é lida de cima para baixo |
+| **Reutilização** | Só da pra usar na query principal se precisar fazer uso em outra tem que fazer novamente | Pode ser referenciada várias vezes no mesmo `SELECT` |
+| **Modularização** | Mistura filtragem com agregação no `FROM` | Permite dividir o problema em passos lógicos encadeados |
+| **Aplicações Especiais** | Não suporta recursividade | Permite CTEs Recursivas (hierarquias/árvores) (*later…*) |
+
+Se isso não te convenceu eu vou escrever a mesma consulta usando o AdventureWorks2022, primeiro com uma Subquery e depois com uma CTE:
+
+**Exemplo**: "Queremos listar todos os produtos cujo preço seja superior à média de preços da respectiva categoria.”
+
+1. Abordagem: Subquery
+
+```sql
+SELECT 
+    p.ProductID,
+    p.Name,
+    p.ListPrice,
+    Medias.PrecoMedioCategoria
+FROM Production.Product p
+INNER JOIN (
+    SELECT 
+        ProductSubcategoryID,
+        AVG(ListPrice) AS PrecoMedioCategoria
+    FROM Production.Product
+    WHERE ProductSubcategoryID IS NOT NULL
+    GROUP BY ProductSubcategoryID
+) AS Medias 
+    ON p.ProductSubcategoryID = Medias.ProductSubcategoryID
+WHERE p.ListPrice > Medias.PrecoMedioCategoria;
+```
+
+1. Abordagem: CTE
+
+```sql
+WITH MediasPorCategoriaCTE AS (
+    SELECT 
+        ProductSubcategoryID,
+        AVG(ListPrice) AS PrecoMedioCategoria
+    FROM Production.Product
+    WHERE ProductSubcategoryID IS NOT NULL
+    GROUP BY ProductSubcategoryID
+)
+SELECT 
+    p.ProductID,
+    p.Name,
+    p.ListPrice,
+    m.PrecoMedioCategoria
+FROM Production.Product p
+INNER JOIN MediasPorCategoriaCTE m
+    ON p.ProductSubcategoryID = m.ProductSubcategoryID
+WHERE p.ListPrice > m.PrecoMedioCategoria;
+```
+
+Se você analisar a primeira query verá que o encadeamento de comando e dados é bem mais complexo, a forma de escrever ela também é mais difícil, se lembrarmos do nosso modelo de mental de estruturação de query: 
+
+**`ENTENDER O RESULTADO (SELECT)`** > **`LOCALIZAR A ORIGEM (FROM)`** > **`FILTRAR OS DADOS (WHERE)`** > **`AGRUPAR E RESUMIR (GROUP BY)`** > **`FILTRAR O AGREGADO (HAVING)`** > **`ORDENAR A SAÍDA (ORDER BY)`**
+
+Você teria que entender o select, mas interromper a próxima etapa, pois o **`FROM`** depende do que será formulado dentro da subquery que você ainda vai formular, isso gera complexidade cognitiva e em casos de consultas muito avançadas abre mais margem pra erro.
+
+Se usarmos o mesmo modelo de estruturação de pensamento para a **CTE**, a escrita flui de forma linear e natural, sem quebras:
+
+Você começa isolando o cálculo complexo na CTE como se estivesse criando uma "tabela temporária perfeita" logo no topo. Ao fazer isso, você aplica o modelo completo nela primeiro: **entende o resultado** (o preço médio), **localiza a origem** (tabela de produtos) e **agrupa os dados** (por subcategoria).
+
+```sql
+WITH MediasPorCategoriaCTE AS (
+    SELECT 
+        ProductSubcategoryID,
+        AVG(ListPrice) AS PrecoMedioCategoria
+    FROM Production.Product
+    WHERE ProductSubcategoryID IS NOT NULL
+    GROUP BY ProductSubcategoryID
+)
+```
+
+Com essa "tabela" de médias pronta e batizada, a sua query principal é escrita de forma limpa e direta do início ao fim: você **entende o resultado** final que o usuário quer ver, **localiza a origem** (conectando a tabela de produtos com a sua CTE recém-criada através de um `JOIN`) e **filtra os dados** comparando o preço do produto com a média da categoria no `WHERE`.
+
+```sql
+SELECT 
+    p.ProductID,
+    p.Name,
+    p.ListPrice,
+    m.PrecoMedioCategoria
+FROM Production.Product p
+INNER JOIN MediasPorCategoriaCTE m
+    ON p.ProductSubcategoryID = m.ProductSubcategoryID
+WHERE p.ListPrice > m.PrecoMedioCategoria;
+```
+
+Ao contrário da subquery — que te obriga a parar no meio do `FROM` para abrir um parêntese e resolver um problema matemático —, a CTE permite que você resolva um problema de cada vez, mantendo o encadeamento de dados lógico, sequencial e livre de complexidade cognitiva.
+
+Agora pra fechar vamos para os exercícios:
+
+#### Exercício 1: Produtos Sem Ordens de Produção (`NOT EXISTS`)
+
+- **Problema de Negócio:** A equipe de logística da fábrica quer identificar produtos cadastrados que **nunca tiveram nenhuma Ordem de Trabalho (*Work Order*)** emitida, para avaliar se devem ser descontinuados do catálogo.
+- **Tabelas:** `Production.Product` (p) e `Production.WorkOrder` (wo).
+- **Objetivo:** Liste o `ProductID`, `Name` e `ProductNumber` de todos os produtos que **não possuem nenhum registro** na tabela `WorkOrder`.
+- **Regra:** Utilize obrigatoriamente o operador `NOT EXISTS`.
+
+```sql
+SELECT 
+	p.ProductID,
+	p.Name AS Name,
+	p.ProductNumber
+FROM Production.Product p
+WHERE NOT EXISTS(
+	SELECT 1
+	FROM Production.WorkOrder wo
+	WHERE wo.ProductID = p.ProductID
+)
+```
+
+#### Exercício 2: Pedidos com Frete Acima da Média Geral (Subquery no `WHERE`)
+
+- **Problema de Negócio:** A auditoria financeira está investigando custos logísticos fora do padrão e solicitou a lista de todas as vendas cujo custo de frete (`Freight`) tenha sido **estritamente maior que a média de frete de todos os pedidos da empresa**.
+- **Tabela:** `Sales.SalesOrderHeader`.
+- **Objetivo:** Retornar `SalesOrderID`, `OrderDate`, `CustomerID` e `Freight`.
+- **Regra:** Ordene do maior frete para o menor.
+
+```sql
+SELECT
+	soh.SalesOrderID,
+	soh.OrderDate,
+	soh.CustomerID,
+	soh.Freight
+FROM Sales.SalesOrderHeader soh
+WHERE soh.Freight > (
+	SELECT
+		AVG(soh.Freight) AS avg_freight
+	FROM Sales.SalesOrderHeader soh
+)
+GROUP BY SalesOrderID, soh.OrderDate, soh.CustomerID, soh.Freight
+ORDER BY soh.Freight DESC;
+```
+
+#### Exercício 3: Pedidos Acima da Média do Próprio Cliente (Subquery Correlacionada)
+
+- **Problema de Negócio:** O time de inteligência de vendas quer encontrar compras "fora da curva" (*outliers* positivos). Eles precisam identificar pedidos individuais cujo valor total (`TotalDue`) foi **estritamente maior do que a média de compras daquele mesmo cliente**.
+- **Tabela:** `Sales.SalesOrderHeader` (soh1 e soh2).
+- **Objetivo:** Retornar `SalesOrderID`, `CustomerID`, `OrderDate` e `TotalDue`.
+- **Regra:** Utilize uma **Subquery Correlacionada** no `WHERE` comparando o `TotalDue` da linha atual com a média do mesmo `CustomerID`. Ordene por `CustomerID` e depois por `TotalDue` decrescente.
+
+```sql
+SELECT 
+    soh1.SalesOrderID,
+    soh1.CustomerID,
+    soh1.OrderDate,
+    soh1.TotalDue
+FROM Sales.SalesOrderHeader soh1
+WHERE soh1.TotalDue > (
+    SELECT AVG(soh2.TotalDue)
+    FROM Sales.SalesOrderHeader soh2
+    WHERE soh2.CustomerID = soh1.CustomerID
+)
+ORDER BY soh1.CustomerID, soh1.TotalDue DESC;
+```

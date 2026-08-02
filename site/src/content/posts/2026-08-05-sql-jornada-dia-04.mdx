@@ -1,0 +1,203 @@
+---
+title: "Dia 4: Lógica Condicional (CASE WHEN), Tratamento de Datas, Nulos e Subqueries"
+description: ""
+pubDate: 2026-08-05
+tags: ["sqlserver", "sql", "case-when", "data-engineering"]
+draft: false
+series: "sql-jornada"
+seriesPart: 4
+---
+
+import Callout from '../../components/Callout.astro';
+
+Se existe um comando que transforma uma consulta simples em um relatório de negócios de verdade, esse comando é o `CASE WHEN`. Ele funciona como o `IF/ELSE` do SQL, permitindo criar lógicas condicionais e categorizar dados no exato momento em que a query é executada.
+
+Hoje resolvi me aprofundar nesse conceito para consolidar essa lógica no meu vocabulário de dados. Aproveitei o dia para ir além do básico: apliquei o `CASE` para calcular prazos de entrega (SLAs de logística) mantendo a consulta otimizada, e aproveitei pra treinar **Agregação Condicional** (colocando o `CASE` dentro de funções como `SUM`), um truque clássico de entrevistas técnicas para gerar indicadores complexos sem travar o banco de dados.
+
+A sintaxae padrão dele é:
+
+```sql
+CASE
+	WHEN condicao_1 THEN 'Resultado1'
+	WHEN condicao_2 THEN 'Resultado2'
+ELSE 'ResultadoPadrao'
+END AS Nome_da_Coluna
+```
+
+Vamos analisar a fundo o que a querie acima está nos dizendo:
+
+1. CASE: Isso estabelece o começo da condição, quando essa estrutura for passada pro SQL, ele está dizendo pra ele: “Nesse caso …”;
+2. WHEN: ele informa a condição, é responsável por determinar pra qual coluna ela se aplica;
+3. THEN: determina o que fazer caso a condição do WHEN seja atendida;
+4. ELSE: diz o que fazer caso nenhuma condição seja atendida;
+5. END AS : finaliza a operação classificando os resultados da/s condição/ões;
+
+Então basicamente funciona de forma a condicionar a quey a fazer operações lógicas com base em argumentos vindo da tabela ou junção de tabelas que a query vai rodar em cima.
+
+Vamos usar o AdventureWorks2022 pra poder treinar isso através de um exercício simples:
+
+### Exemplo
+
+**Exercício 1: Classificação de Ticket Médio por Pedido (`Sales.SalesOrderHeader`)**
+• **Objetivo:** Classificar cada pedido (`SalesOrderID`) quanto ao seu valor (`TotalDue`):
+    ◦ Se `TotalDue` >= 50.000  —>  `'VIP'`
+    ◦ Se `TotalDue` entre 10.000 e 49.999 —> `'Médio'`
+    ◦ Se `TotalDue` < 10.000 —> `'Baixo'`
+• **Desafio extra:** Agrupar pelo tipo de ticket e contar quantos pedidos existem em cada categoria.
+
+Vou explicar no detalhe somente esse primeiro exercício pra fixar a lógica. Pensando no padrão de construção de query que vimos no dia 3 que começa com FROM **& JOIN** → WHERE → GROUP BY → HAVING → SELECT → ORDER BY:
+
+1.  A resolução começa com a origem dos dados: 
+    1. `FROM Sales.SalesOrderHeader soh`
+2. Depois como não precisa agrupar nada (por enquanto), vamos selecionar o que será mostrado e ilustrar a condição proposta para cada caso:
+    
+    ```sql
+    	soh.SalesOrderID,
+    	CASE
+    		WHEN soh.TotalDue >= 50000 THEN 'VIP'
+    		WHEN soh.TotalDue BETWEEN 10000 AND 49999 THEN 'Médio'
+    		WHEN soh.TotalDue < 10000 THEN 'Baixo'
+    ```
+    
+
+Então basicamente determinamos a categoria de cada ticket com base no valor atrelado ao seu ID, ficando assim no final:
+
+```sql
+SELECT
+	soh.SalesOrderID,
+	CASE
+		WHEN soh.TotalDue >= 50000 THEN 'VIP'
+		WHEN soh.TotalDue BETWEEN 10000 AND 49999 THEN 'Médio'
+		WHEN soh.TotalDue < 10000 THEN 'Baixo'
+	END AS TipoTicket
+FROM Sales.SalesOrderHeader soh
+```
+
+![Classificação de ticket por pedido](/blog_2.0/images/sql_day_4/ticket_type.png) mas isso não traz nenhum inisght de negócio então pra podermos melhorar a análise vamos utilizar uma **Subquery**
+
+### O que é uma Subquery?
+
+Como o prefixo do nome ja diz ela é uma query “inferior”, ”abaixo”, “segundo-plano” à query principal. Isso não significa que ela é menos importante, na verdade, a subquery provê o insumo que a query principal utilizará pra poder pegar seus dados. Vamos entender na prática como usar.
+
+Basicamente a ideia é aproveitar as informações que nossa query a princípio trouxe e usar essa ‘tabela’ como intermediária pra poder ver qual Tipo de Ticket corresponde à mairoria das vendas.
+
+Pra fazer isso basta colocar essa consulta pronta dentro de uma estrutura de Subquery e nomea-la como bem desejarmos, depois vamos só fazer uma estrutura normal de consultas com o resultado que já está lá dentro, no nosso caso o da imagem acima, nessa nova query poderemos usar a categoria do ticket como agrupador e depois apenas fazer um COUNT na quantidade de cada categoria pra determinarmos quantos tem de cada usando os dados referenciados nessa subquery:
+
+```sql
+SELECT
+	ticket_class.TipoTicket,
+	COUNT(ticket_class.TipoTicket) AS Quantidade
+FROM(
+SELECT
+	soh.SalesOrderID,
+	CASE
+		WHEN soh.TotalDue >= 50000 THEN 'VIP'
+		WHEN soh.TotalDue BETWEEN 10000 AND 49999 THEN 'Médio'
+		WHEN soh.TotalDue < 10000 THEN 'Baixo'
+	END AS TipoTicket
+FROM Sales.SalesOrderHeader soh
+)AS ticket_class
+GROUP BY ticket_class.TipoTicket
+```
+
+![Quantidade de pedidos por tipo de ticket](/blog_2.0/images/sql_day_4/ticket_type_qnty.png)
+
+Agora sabemos que o que mais vende na empresa são produtos de ticket baixo. Isso sim é uma informação valiosa.
+
+Continuando o fator de prática constante, segue os exercícios de hoje, são Drills simples mas que da pra fazer fixar bem os conceitos:
+
+## Exercício 1: Classificação de Ticket Médio por Pedido
+
+### Objetivo
+
+Classificar os pedidos de venda em faixas de valor (VIP, Médio e Baixo) e contabilizar a quantidade total de pedidos em cada categoria.
+
+### Query
+
+```sql
+SELECT
+    CASE
+        WHEN soh.TotalDue >= 50000 THEN 'VIP'
+        WHEN soh.TotalDue >= 10000 THEN 'Médio'
+        ELSE 'Baixo'
+    END AS TipoTicket,
+    COUNT(*) AS Quantidade
+FROM Sales.SalesOrderHeader soh
+GROUP BY
+    CASE
+        WHEN soh.TotalDue >= 50000 THEN 'VIP'
+        WHEN soh.TotalDue >= 10000 THEN 'Médio'
+        ELSE 'Baixo'
+    END;
+```
+
+### Fatores-Chave
+
+1. **Avaliação Sequencial do `CASE`:** A cláusula `CASE WHEN` é processada sequencialmente, de cima para baixo. Quando uma condição é satisfeita, o motor do SQL interrompe as avaliações seguintes para aquele registro.
+2. **Cuidado com Limites em Tipos Decimais:** O uso de `BETWEEN 10000 AND 49999` em colunas monetárias pode criar uma brecha lógica para valores fracionados (como `49999.50`), fazendo com que o registro retorne `NULL`. Encadear as condições de forma decrescente elimina essa vulnerabilidade sem a necessidade de definir limites superiores rígidos.
+3. **Repetição de Expressões no `GROUP BY`:** Como a ordenação lógica de execução processa o `GROUP BY` antes do `SELECT`, o *alias* da coluna (`TipoTicket`) não fica acessível no agrupamento, exigindo a repetição da estrutura lógica ou o uso de uma tabela derivada/CTE.
+
+## Exercício 2: Análise do Tempo de Logística e Envio (SLA)
+
+### Objetivo
+
+Mapear a eficiência operacional calculando a diferença em dias entre a data do pedido e a data de envio para vendas do ano de 2013, categorizando o status do envio entre "No Prazo" e "Em Atraso".
+
+### Query
+
+```sql
+SELECT
+    CASE
+        WHEN DATEDIFF(DAY, soh.OrderDate, soh.ShipDate) <= 7 THEN 'Envio no Prazo'
+        ELSE 'Envio em Atraso'
+    END AS Status_Envio,
+    COUNT(*) AS Quantidade
+FROM Sales.SalesOrderHeader soh
+WHERE soh.OrderDate >= '2013-01-01' AND soh.OrderDate < '2014-01-01'
+GROUP BY
+    CASE
+        WHEN DATEDIFF(DAY, soh.OrderDate, soh.ShipDate) <= 7 THEN 'Envio no Prazo'
+        ELSE 'Envio em Atraso'
+    END;
+```
+
+### Fatores-Chave
+
+1. **Cálculo de SLAs com `DATEDIFF`:** Permite mensurar a latência entre dois marcos temporais (`OrderDate` e `ShipDate`) diretamente na consulta, viabilizando análises de desempenho logístico.
+2. **Otimização de Performance (SARGability):** Evitou-se o uso de `WHERE YEAR(OrderDate) = 2013`. Aplicar funções em colunas na cláusula `WHERE` desabilita a utilização de índices pelo banco de dados (*Non-Sargable Query*), forçando a leitura de toda a tabela. O filtro utilizando o intervalo de datas explícito (`>= '2013-01-01' AND < '2014-01-01'`) permite a busca direta via índice (*SARGable Query*).
+
+## Exercício 3: Agregação Condicional
+
+### Objetivo
+
+Gerar um relatório por cliente que exiba, em uma única linha, o gasto total acumulado, o gasto exclusivo em pedidos de alto valor (superiores a $5.000) e a contagem total de pedidos.
+
+### Query
+
+```sql
+SELECT
+    soh.CustomerID,
+    SUM(soh.TotalDue) AS Total_Gasto_Geral,
+    SUM(CASE WHEN soh.TotalDue > 5000 THEN soh.TotalDue ELSE 0 END) AS Total_Acima_5k,
+    COUNT(soh.SalesOrderID) AS Total_Pedidos
+FROM Sales.SalesOrderHeader soh
+GROUP BY soh.CustomerID
+HAVING SUM(CASE WHEN soh.TotalDue > 5000 THEN soh.TotalDue ELSE 0 END) > 0;
+```
+
+### Fatores-Chave
+
+1. **Pivot de Métricas na Mesma Linha:** A inserção do `CASE WHEN` dentro da função agregadora `SUM()` viabiliza o cálculo de subconjuntos de dados sem a necessidade de realizar múltiplos `JOINs` ou subconsultas custosas.
+2. **Eficiência de Leitura (*Single Pass Scan*):** A agregação condicional permite que o motor do banco compute métricas gerais e filtradas realizando uma única varredura sobre a tabela, reduzindo drasticamente o consumo de memória e I/O.
+3. **Tratamento de Nulos com `ELSE 0`:** A utilização explícita do `ELSE 0` na estrutura condicional garante que retornos financeiros permaneçam numéricos e matematicamente consistentes em relatórios, em vez de gerar lacunas com valores nulos.
+4. **Filtragem Agregada via `HAVING`:** Como a condição depende do resultado de um cálculo agregador condicional, a restrição deve ser aplicada na cláusula `HAVING`, que atua após a etapa de agrupamento.
+
+## Elucidação dos Conceitos do Dia
+
+O objetivo central das atividades do Dia 4 foi avançar da extração simples de dados para o desenvolvimento de inteligência de negócio e otimização de consultas dentro do SGBD.
+
+- **Regras de Negócio na Camada de Dados:** A utilização do `CASE WHEN` permite transformar dados brutos em categorias analíticas utilizáveis em relatórios executivos.
+- **Consciência de Performance:** A substituição de funções em colunas por intervalos de datas explícitos preserva os índices e garante a escalabilidade das consultas em ambientes de produção.
+- **Técnicas Avançadas de Agregação:** O domínio da agregação condicional resolve problemas clássicos de entrevistas técnicas, demonstrando capacidade de condensar relatórios complexos com baixo custo computacional.
+
+E assim fecha mais um dia de código na tela. A teoria da faculdade pode até ter passado batida na época, mas ver a consulta rodando lisa no SSMS e entendendo o porquê de cada linha faz a diferença. Bora pro próximo nível que o teste técnico não vai se resolver sozinho.
