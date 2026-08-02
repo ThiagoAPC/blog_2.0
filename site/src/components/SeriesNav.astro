@@ -1,0 +1,50 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { url } from '../utils/url';
+
+interface Props {
+  parent: CollectionEntry<'posts'>;
+  seriesPart: number;
+  totalParts: number;
+  prev?: CollectionEntry<'posts'>;
+  next?: CollectionEntry<'posts'>;
+}
+
+const { parent, seriesPart, totalParts, prev, next } = Astro.props;
+---
+
+<div class="mb-8 rounded-lg border border-wire dark:border-void p-4 text-sm">
+  <div class="flex items-center gap-2 mb-3 flex-wrap">
+    <a
+      href={url(`posts/${parent.slug}`)}
+      class="text-xs text-muted dark:text-snow/50 hover:text-rust dark:hover:text-rust transition-colors"
+    >
+      ← {parent.data.title}
+    </a>
+    <span class="text-muted dark:text-snow/20 text-xs">·</span>
+    <span class="font-mono text-xs text-muted dark:text-snow/30">
+      parte {seriesPart}/{totalParts}
+    </span>
+  </div>
+
+  {(prev || next) && (
+    <div class="flex justify-between gap-4 pt-3 border-t border-wire dark:border-void">
+      {prev ? (
+        <a
+          href={url(`posts/${prev.slug}`)}
+          class="text-xs text-ink dark:text-snow/60 hover:text-rust dark:hover:text-rust transition-colors truncate max-w-[45%]"
+        >
+          ← {prev.data.title}
+        </a>
+      ) : <span />}
+      {next && (
+        <a
+          href={url(`posts/${next.slug}`)}
+          class="text-xs text-ink dark:text-snow/60 hover:text-rust dark:hover:text-rust transition-colors truncate max-w-[45%] text-right"
+        >
+          {next.data.title} →
+        </a>
+      )}
+    </div>
+  )}
+</div>

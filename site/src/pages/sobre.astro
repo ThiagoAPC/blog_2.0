@@ -1,0 +1,103 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { url } from '../utils/url';
+---
+
+<BaseLayout
+  title="Sobre"
+  description="O que é o Late Night Data Thoughts, sobre quem escreve e o que você vai encontrar aqui."
+>
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-14">
+
+    <!-- Header -->
+    <header class="mb-12 pb-8 border-b border-wire dark:border-void">
+      <p class="text-xs font-mono text-muted dark:text-snow/40 uppercase tracking-widest mb-3">Sobre este blog</p>
+      <h1 class="text-4xl font-bold text-ink dark:text-snow leading-tight mb-4">
+        Late Night Data Thoughts
+      </h1>
+      <p class="text-lg text-muted dark:text-snow/60 leading-relaxed">
+        Um log de aprendizados compilados de forma organizada. Tecnologia, dados e tudo mais
+        que vale a pena registrar.
+      </p>
+    </header>
+
+    <!-- Main content -->
+    <div class="prose max-w-none">
+
+      <h2>O que é este blog?</h2>
+      <p>
+        <strong>Late Night Data Thoughts</strong> é um espaço para compilar aprendizados de forma
+        organizada. Não é um curso, não é uma newsletter e não tem compromisso com regularidade
+        forçada. É um registro honesto do que foi estudado, testado e entendido.
+      </p>
+      <p>
+        A ideia é simples: cada vez que algo interessante aparece no caminho — um conceito que
+        travou, uma solução que funcionou, uma ferramenta que vale conhecer — isso vai parar
+        aqui em forma de post. Um log técnico que cresce junto com quem escreve.
+      </p>
+
+      <h2>Por que registrar isso?</h2>
+      <p>
+        Aprender sem documentar é como resolver um problema e não anotar a solução. Na próxima
+        vez que o mesmo problema aparecer, o trabalho começa do zero.
+      </p>
+      <p>
+        Escrever obriga a organizar o pensamento. Explicar um conceito em texto é o teste mais
+        honesto de se você de fato entendeu ele. Este blog é essa prática tornada pública.
+      </p>
+
+      <h2>O que você vai encontrar aqui</h2>
+      <p>
+        O foco principal é tecnologia — especialmente dados, engenharia de software e tudo que
+        orbita essa área. Mas o critério de publicação é simples: se foi algo relevante de
+        aprender, vale um post.
+      </p>
+      <p>
+        O conteúdo vai de fundamentos (SQL, estruturas de dados, conceitos de banco) até tópicos
+        mais avançados (pipelines, arquitetura distribuída, ferramentas modernas de dados). Alguns
+        posts são aprofundados, outros são apenas notas rápidas de algo que vale registrar.
+      </p>
+
+      <h2>A filosofia por trás do conteúdo</h2>
+      <p>
+        Sem perfeccionismo. Com erros incluídos. O objetivo não é publicar só quando tudo está
+        100% claro — é registrar o processo, inclusive as partes confusas. Aprender em público
+        é desconfortável, mas é a forma mais honesta de documentar progresso real.
+      </p>
+      <p>
+        O nível de profundidade varia: alguns posts são introdutórios, outros são densos e
+        assumem familiaridade com o contexto. As tags de cada post ajudam a navegar.
+      </p>
+
+      <h2>Stack do blog</h2>
+      <p>
+        Este blog foi construído com <strong>Astro 5</strong> + <strong>Tailwind CSS v4</strong> +
+        <strong>MDX</strong>, sem JavaScript desnecessário no cliente, sem CMS externo, sem dependência
+        de plataformas de terceiros. Deploy via <strong>GitHub Actions</strong> para <strong>GitHub Pages</strong>,
+        100% gratuito e open source, particularmente eu não possuo experiência profunda com front-end, as ideias e layout aqui são o que achei que funciona melhor.
+      </p>
+      <p>
+        O código-fonte está disponível no{' '}
+        <a href="https://github.com/ThiagoAPC/blog_2.0" target="_blank" rel="noopener noreferrer">
+          GitHub
+        </a>
+        . Se quiser montar algo parecido, fique à vontade para usar como referência.
+      </p>
+
+    </div>
+
+    <!-- Footer CTA -->
+    <div class="mt-14 pt-8 border-t border-wire dark:border-void flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <p class="text-sm text-muted dark:text-snow/50">
+        Quer ver o que está sendo publicado?
+      </p>
+      <a
+        href={url('')}
+        class="text-sm font-medium text-ink dark:text-snow hover:text-rust dark:hover:text-rust transition-colors"
+      >
+        Ver todos os artigos →
+      </a>
+    </div>
+
+  </div>
+</BaseLayout>

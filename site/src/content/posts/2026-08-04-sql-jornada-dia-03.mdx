@@ -1,0 +1,278 @@
+---
+title: "Dia 3: Como o SQL Lê sua Query e Resolução de Desafios Práticos"
+description: "Entendendo a ordem lógica de execução do SQL Server para destravar a escrita de queries, com rotinas de treino e 10 desafios de negócio no AdventureWorks2022."
+pubDate: 2026-08-04
+tags: ["sqlserver", "adventureworks", "sql", "data-engineering", "data-analysis"]
+draft: false
+series: "sql-jornada"
+seriesPart: 3
+---
+
+import Callout from '../../components/Callout.astro';
+
+No Dia 2, realizei uma exploração do dataset AdventureWorks2022 e resolvi questões de negócio para ganhar tração com SQL. No entanto, a sintaxe ainda é algo que me trava em alguns momentos.
+
+Para evoluir nisso e ter mais segurança técnica, dediquei o Dia 3 a entender **como o banco de dados processa e executa uma query**. A ideia é criar um modelo mental sólido para estruturar qualquer consulta sem hesitar.
+
+---
+
+## 1. Ordem de Escrita vs. Ordem de Execução
+
+Uma das principais viradas de chave para não errar a sintaxe é escrever a consulta pensando na ordem em que o motor do banco de dados irá executá-la. Em vez de começar digitando o `SELECT` e tentar adivinhar o restante, segue-se o fluxo lógico do pipeline de dados.
+
+Abaixo está o comparativo entre a ordem em que digitamos e a ordem em que o SQL Server executa internamente:
+
+| Ordem de Escrita | Ordem de Execução |
+| :--- | :--- |
+| 1. `SELECT` | 1. `FROM` & `JOIN` — De onde vêm os dados? |
+| 2. `FROM` & `JOIN` | 2. `WHERE` — Quais linhas serão filtradas? |
+| 3. `WHERE` | 3. `GROUP BY` — Como as linhas serão agrupadas? |
+| 4. `GROUP BY` | 4. `HAVING` — Quais grupos serão filtrados? |
+| 5. `HAVING` | 5. `SELECT` — O que será exibido e calculado? |
+| 6. `ORDER BY` | 6. `DISTINCT` — Duplicatas serão removidas? |
+| 7. `TOP` / `LIMIT` | 7. `ORDER BY` — Como a saída será ordenada? |
+| | 8. `TOP` / `LIMIT` — Quantas linhas serão retornadas? |
+
+![Fluxo de ordem de execução lógica no SQL](/blog_2.0/images/sql_day_3/execution_order_diagram.png)
+
+---
+
+## 2. Aplicando o Fluxo Mental em um Exemplo Prático
+
+Para fixar a lógica, analisei o seguinte enunciado:
+
+> *"Quero saber o nome dos produtos vendidos que geraram mais de 50.000 no total de receita, considerando apenas itens com preço unitário maior que 100, ordenados do maior para o menor valor."*
+
+A construção da query seguiu a ordem de execução passo a passo:
+
+1. **`FROM` & `JOIN`**: Os dados estão em `Sales.SalesOrderDetail` e `Production.Product`.
+2. **`WHERE`**: Filtro no nível de linha para `UnitPrice > 100`.
+3. **`GROUP BY`**: Agrupamento pelo nome do produto (`p.Name`).
+4. **`HAVING`**: Filtro de agregação para receitas superiores a 50.000.
+5. **`SELECT`**: Projeção do nome e da soma da receita.
+6. **`ORDER BY`**: Ordenação decrescente pelo total faturado.
+
+```sql
+SELECT
+    p.Name AS Nome_Produto,
+    SUM(sod.LineTotal) AS Faturamento_Total
+FROM AdventureWorks2022.Sales.SalesOrderDetail sod
+JOIN AdventureWorks2022.Production.Product p 
+    ON p.ProductID = sod.ProductID
+WHERE sod.UnitPrice > 100
+GROUP BY p.Name
+HAVING SUM(sod.LineTotal) > 50000
+ORDER BY Faturamento_Total DESC;
+```
+
+### Por que esse entendimento evita erros?
+
+- **Por que não posso usar o apelido do `SELECT` no `WHERE`?** Porque o `WHERE` roda no Passo 2, enquanto o `SELECT` só é processado no Passo 5. O alias ainda não existe para a engine.
+- **Por que posso usar o apelido no `ORDER BY`?** Porque o `ORDER BY` roda no Passo 7, após o `SELECT` já ter criado e renomeado a coluna.
+
+---
+
+## 3. Exercícios de Fixação (Drills)
+
+### Drill 1: Contagem e Filtro de Grupo
+
+Quantidade de clientes por território, apenas para territórios com mais de 1.000 clientes:
+
+```sql
+SELECT
+    c.TerritoryID AS cod_territorio,
+    COUNT(c.CustomerID) AS quant_clientes
+FROM AdventureWorks2022.Sales.Customer c
+GROUP BY c.TerritoryID
+HAVING COUNT(c.CustomerID) > 1000
+ORDER BY quant_clientes DESC;
+```
+
+### Drill 2: Soma e Tratamento de Nulos
+
+Valor total devido por vendedor, ignorando nulos e filtrando totais acima de 5.000.000:
+
+```sql
+SELECT
+    soh.SalesPersonID,
+    SUM(soh.TotalDue) AS Total_Vendido
+FROM AdventureWorks2022.Sales.SalesOrderHeader soh
+WHERE soh.SalesPersonID IS NOT NULL
+GROUP BY soh.SalesPersonID
+HAVING SUM(soh.TotalDue) > 5000000;
+```
+
+### Drill 3: Métricas de Mínimo e Máximo
+
+Menor e maior preço de tabela por cor, ignorando produtos sem cor e com preço zerado:
+
+```sql
+SELECT
+    p.Color,
+    MIN(p.ListPrice) AS Preco_Min,
+    MAX(p.ListPrice) AS Preco_Max
+FROM AdventureWorks2022.Production.Product p
+WHERE p.Color IS NOT NULL 
+  AND p.ListPrice > 0
+GROUP BY p.Color;
+```
+
+### Drill 4: Médias de Estoque
+
+Média de itens em estoque por localidade, apenas para médias superiores a 200 unidades:
+
+```sql
+SELECT
+    pin.LocationID,
+    AVG(pin.Quantity) AS Quantidade_Media
+FROM AdventureWorks2022.Production.ProductInventory pin
+GROUP BY pin.LocationID
+HAVING AVG(pin.Quantity) > 200
+ORDER BY pin.LocationID;
+```
+
+---
+
+## 4. Desafios de Negócio no AdventureWorks2022
+
+### 1. Perfil Demográfico dos Funcionários
+
+```sql
+SELECT 
+    Gender, 
+    MaritalStatus, 
+    COUNT(*) AS Qtd_Funcionarios
+FROM HumanResources.Employee
+GROUP BY Gender, MaritalStatus;
+```
+
+### 2. Auditoria de Fretes
+
+```sql
+SELECT
+    sod.TerritoryID,
+    AVG(sod.Freight) AS MediaFrete
+FROM Sales.SalesOrderHeader sod
+GROUP BY sod.TerritoryID
+HAVING AVG(sod.Freight) > 50;
+```
+
+### 3. Volume por Linha de Produto
+
+```sql
+SELECT
+    p.ProductLine AS Linha_Produto,
+    COUNT(p.ProductLine) AS Quantidade
+FROM Production.Product p
+WHERE p.ProductLine IS NOT NULL
+GROUP BY p.ProductLine;
+```
+
+### 4. Clientes com Maior Volume de Compra
+
+```sql
+SELECT
+    sod.CustomerID,
+    SUM(sod.TotalDue) AS Total_Gasto
+FROM Sales.SalesOrderHeader sod
+GROUP BY sod.CustomerID
+HAVING SUM(sod.TotalDue) > 150000;
+```
+
+### 5. Faturamento por Nome da Região
+
+```sql
+SELECT
+    st.Name AS Nome_Regiao,
+    SUM(sod.TotalDue) AS Faturamento_Regiao
+FROM Sales.SalesOrderHeader sod
+LEFT JOIN Sales.SalesTerritory st 
+    ON st.TerritoryID = sod.TerritoryID
+GROUP BY st.Name
+HAVING SUM(sod.TotalDue) > 10000000;
+```
+
+### 6. Custo de Produção por Categoria
+
+```sql
+SELECT
+    pc.Name AS Categoria,
+    AVG(p.StandardCost) AS Custo_Producao,
+    AVG(sod.LineTotal) AS Lucro_Categoria
+FROM Production.Product p
+LEFT JOIN Production.ProductSubcategory ps 
+    ON p.ProductSubcategoryID = ps.ProductSubcategoryID
+LEFT JOIN Production.ProductCategory pc 
+    ON ps.ProductCategoryID = pc.ProductCategoryID
+LEFT JOIN Sales.SalesOrderDetail sod 
+    ON sod.ProductID = p.ProductID
+WHERE pc.Name IS NOT NULL
+GROUP BY pc.Name
+ORDER BY Custo_Producao DESC;
+```
+
+### 7. Itens com Alto Volume de Vendas
+
+```sql
+SELECT
+    p.Name AS Nome_Produto,
+    SUM(sod.OrderQty) AS Quantidade_Vendida
+FROM Sales.SalesOrderDetail sod
+JOIN Production.Product p 
+    ON p.ProductID = sod.ProductID
+GROUP BY p.Name
+HAVING SUM(sod.OrderQty) > 2000;
+```
+
+### 8. Média de Horas de Férias por Departamento
+
+```sql
+SELECT
+    d.Name AS Departamento,
+    AVG(e.VacationHours) AS Media_Ferias
+FROM HumanResources.Employee e
+LEFT JOIN HumanResources.EmployeeDepartmentHistory dh 
+    ON dh.BusinessEntityID = e.BusinessEntityID
+LEFT JOIN HumanResources.Department d 
+    ON d.DepartmentID = dh.DepartmentID
+GROUP BY d.Name;
+```
+
+### 9. Auditoria de Descontos Concedidos
+
+```sql
+SELECT
+    p.Name AS Nome_Produto,
+    AVG(sod.UnitPriceDiscount) AS Media_Desconto
+FROM Sales.SalesOrderDetail sod
+LEFT JOIN Production.Product p 
+    ON p.ProductID = sod.ProductID
+GROUP BY p.Name
+HAVING COUNT(DISTINCT SalesOrderID) > 500 
+   AND AVG(sod.UnitPriceDiscount) > 0.02;
+```
+
+### 10. Ranking de Faturamento por Vendedor
+
+```sql
+SELECT
+    CONCAT(pe.FirstName, ' ', pe.LastName) AS Super_Vendor,
+    COUNT(soh.SalesOrderID) AS Total_Orders,
+    SUM(soh.TotalDue) AS Total_Sold
+FROM Person.Person pe
+INNER JOIN Sales.SalesPerson sp 
+    ON sp.BusinessEntityID = pe.BusinessEntityID
+INNER JOIN Sales.SalesOrderHeader soh 
+    ON soh.SalesPersonID = sp.BusinessEntityID
+GROUP BY pe.FirstName, pe.LastName
+HAVING SUM(soh.TotalDue) > 3000000
+ORDER BY Total_Sold DESC;
+```
+
+---
+
+## 5. Conclusão
+
+A rotina de hoje ajudou a estabelecer uma estrutura mental mais clara na escrita de SQL. Seguir o fluxo `FROM` → `WHERE` → `GROUP BY` → `HAVING` → `SELECT` → `ORDER BY` simplifica a decomposição de qualquer enunciado em cláusulas específicas.
+
+Nos próximos dias, a ideia é expandir esse conhecimento aplicando funções de janela (_Window Functions_), subqueries mais complexas e manipulação avançada de datas.

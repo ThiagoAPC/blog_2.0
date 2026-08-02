@@ -1,0 +1,31 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { url } from '../utils/url';
+
+interface Props {
+  parts: CollectionEntry<'posts'>[];
+}
+
+const { parts } = Astro.props;
+---
+
+<section class="mt-10 border-t border-wire dark:border-void pt-8">
+  <h2 class="text-base font-semibold text-ink dark:text-snow mb-4 tracking-tight">
+    Episódios desta série
+  </h2>
+  <ol class="space-y-2">
+    {parts.map((part) => (
+      <li class="flex items-baseline gap-3 group">
+        <span class="font-mono text-xs text-muted dark:text-snow/30 w-6 shrink-0 text-right">
+          {String(part.data.seriesPart).padStart(2, '0')}
+        </span>
+        <a
+          href={url(`posts/${part.slug}`)}
+          class="text-sm text-ink dark:text-snow/80 hover:text-rust dark:hover:text-rust transition-colors leading-snug"
+        >
+          {part.data.title}
+        </a>
+      </li>
+    ))}
+  </ol>
+</section>

@@ -1,0 +1,82 @@
+---
+title: "Dia 1: Instalando o SQL Server, SGBD e Carregando o Primeiro Dataset"
+description: "Primeiros passos no setup do ambiente local: download do SQL Server, resolução do erro de conexão e restauração do dataset AdventureWorks."
+pubDate: 2026-08-02
+tags: ["sqlserver", "databases", "adventureworks", "journal", "data-engineering"]
+draft: false
+series: "sql-jornada"
+seriesPart: 1
+---
+
+Resolvi escolher o **SQL Server** como meu SGBD para este início de jornada. É a ferramenta com a qual me sinto mais familiarizado e acredito que cumpre perfeitamente o que promete para os estudos.
+
+A meta para o primeiro dia era bem direta:
+1. Ter o **SQL Server** instalado e rodando.
+2. Configurar a **interface visual** (SSMS / Azure Data Studio).
+3. Deixar um **dataset pronto** para executar minhas primeiras consultas.
+
+---
+
+## 1. Instalação e o Primeiro Desconforto
+
+Sinceramente, achei o processo de instalação um pouco confuso por nunca ter feito isso do zero na minha máquina local. Fui seguindo alguns tutoriais e tentando ajustar na mão.
+
+* **Download do SQL Server:** Baixei através do [link oficial da Microsoft](https://www.microsoft.com/pt-br/sql-server/sql-server-downloads) para que o serviço rode em segundo plano na máquina.
+* **Interface Gráfica:** A própria instalação do SQL Server oferece o link para baixar a interface visual logo ao finalizar.
+
+> **Ponto de atenção:** Tive que instalar o *Visual Studio Installer* no meio do processo apenas para poder utilizar as ferramentas do SQL... Mais uma tralha ocupando espaço e bagunçando o PC, mas faz parte do jogo.
+
+---
+
+## 2. O Primeiro Contratempo: Erro de Conexão
+
+Assim que abri a tela de conexão da interface visual pela primeira vez, me deparei com o prompt solicitando os dados do servidor:
+
+![Tela de conexão do SQL Server](/blog_2.0/images/sql_day_1/login_sql.png)
+
+Como de primeira a gente nunca sabe direito o que preencher, pesquisei brevemente e vi que a solução para um ambiente de dev local é simples:
+
+1. No campo **Server Name**, digite `localhost` (ou apenas um ponto `.`).
+2. Marque a caixinha **Trust Server Certificate** (*Certificado de Servidor de Confiança*).
+
+Isso avisa ao aplicativo que ele pode confiar na conexão local do próprio computador, liberando o acesso imediato sem firulas.
+
+> **Nota:** Com certeza vale a pena aprofundar nos aspectos de segurança e controle de acessos mais pra frente (até pelo contexto corporativo), mas no momento o foco total é meter a mão na massa em queries e manipulação de dados.
+
+---
+
+## 3. Carregando o Dataset: AdventureWorks
+
+Com a interface conectada e funcionando, o passo seguinte foi arrumar um bom conjunto de dados para treinar consultas de todos os tipos. Escolhi o **AdventureWorks2022**, um dataset clássico da Microsoft, ideal para aprender:
+* Relacionamentos entre tabelas.
+* Consultas focadas em vendas e e-commerce.
+* Estrutura de dados de funcionários e RH.
+
+### Passo a passo para a restauração:
+
+1. Baixei o arquivo `.bak` diretamente do [repositório/link oficial da Microsoft](https://learn.microsoft.com/en-us/sql/samples/adventureworks-install-configure).
+2. Salvei na minha pasta centralizada de estudos de SQL.
+3. No SQL Server, cliquei com o botão direito em **Databases** ➔ **Restore Database...**
+4. Alterei a origem para **Device**, selecionei o caminho do arquivo `.bak` no disco e ordenei a restauração.
+
+![Tabelas do AdventureWorks restauradas com sucesso](/blog_2.0/images/sql_day_1/tables_view.png)
+
+---
+
+## 4. O Primeiro `SELECT`
+
+Para fechar o Dia 1 com chave de ouro e validar que os dados estão legíveis, executei a primeira consulta básica direto na tabela de pessoas:
+
+```sql
+-- Validando o acesso aos dados do AdventureWorks
+SELECT TOP 10 
+    BusinessEntityID,
+    FirstName,
+    LastName,
+    PersonType
+FROM Person.Person;
+```
+
+![Resultado do primeiro SELECT no AdventureWorks](/blog_2.0/images/sql_day_1/first_select.png)
+
+Bom o dia de hoje foi mais ou menos isso, espero que eu consiga me manter disciplinado e treinar todo dia algo :p

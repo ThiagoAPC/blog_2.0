@@ -1,0 +1,204 @@
+---
+title: "Dia 2: Explorando o Dataset AdventureWorks2022"
+description: "Mapeando esquemas, entendendo a modelagem de vendas e criando consultas com subqueries, CTEs e LEFT JOINs para extrair insights do banco de dados."
+pubDate: 2026-08-03
+tags: ["sqlserver", "adventureworks", "sql", "data-engineering", "data-analysis"]
+draft: false
+series: "sql-jornada"
+seriesPart: 2
+---
+
+import Callout from '../../components/Callout.astro';
+
+Continuando de onde parei ontem, hoje decidi começar a explorar o dataset e fazer alguns desafios básicos para pegar contexto do que existe dentro desse banco de dados.
+
+O começo é um pouco confuso pela quantidade de informação disponível, com muitas tabelas representando diferentes aspectos do negócio:
+
+![Visão geral das tabelas no banco de dados](/blog_2.0/images/sql_day_2/company_business.png)
+
+## 1. Mapeamento de Categorias e Esquemas
+
+Fazendo uma consulta rápida na tabela `AdventureWorks2022.Production.ProductCategory`, foi possível identificar que o ecossistema fictício da empresa representa uma loja de produtos esportivos:
+
+![Consulta na tabela ProductCategory](/blog_2.0/images/sql_day_2/database_categories.png)
+
+Com essa visão clara do produto final, fica mais fácil navegar entre as tabelas. Para entender melhor a organização interna do banco, consultei o catálogo do sistema (`sys.tables`) para mapear a divisão por schemas:
+
+```sql
+SELECT 
+    SCHEMA_NAME(SCHEMA_ID) AS Esquema, 
+    name AS Tabela
+FROM sys.tables
+ORDER BY Esquema, Tabela;
+```
+
+![Tabelas agrupadas por esquema](/blog_2.0/images/sql_day_2/different_tabels.png)
+
+Agora é possível identificar o departamento ao qual cada tabela pertence. Embora isso seja visível na navegação lateral da interface, essa consulta centralizada facilita a leitura e o agrupamento.
+
+## 2. Modelagem do Esquema de Vendas (Sales)
+
+Dentre as categorias mapeadas, o núcleo do negócio está no schema `Sales`. É nele que residem os dados financeiros e as métricas principais da empresa.
+
+Analisei duas tabelas fundamentais:
+
+- **`Sales.SalesOrderDetail`**: Funciona como uma tabela **Fato**. Registra os eventos transacionais de cada item vendido (`SalesOrderID`, `ProductID`, `UnitPrice`, `OrderQty`).
+- **`Sales.SalesOrderHeader`**: Guarda os dados de contexto da transação (data do pedido, cliente, endereço, impostos e totalizador da nota).
+
+Por questões de normalização e desempenho, esses dados são separados. Para obter uma visão completa do fluxo de negócios — próxima a um modelo *Star Schema* de Data Warehouse — montei o seguinte `JOIN`:
+
+```sql
+SELECT
+    -- Chaves das Dimensões (Onde, Quando, Quem e O quê)
+    soh.SalesOrderID,
+    soh.OrderDate          AS Chave_Tempo,
+    soh.CustomerID         AS Chave_Cliente,
+    sod.ProductID          AS Chave_Produto,
+    -- Métricas Fato (Quanto e O quanto)
+    sod.OrderQty           AS Quantidade_Venda,
+    sod.UnitPrice          AS Preco_Unitario,
+    sod.LineTotal          AS Total_Item,
+    soh.TotalDue           AS Total_Geral_Nota
+FROM AdventureWorks2022.Sales.SalesOrderDetail sod
+JOIN AdventureWorks2022.Sales.SalesOrderHeader soh 
+    ON soh.SalesOrderID = sod.SalesOrderID;
+```
+
+![Resultado do JOIN unificando métricas de vendas](/blog_2.0/images/sql_day_2/product_sale_history.png)
+
+## 3. Identificando os Produtos Mais Vendidos
+
+Utilizando a visão gerada acima, o objetivo passou a ser responder uma pergunta de negócio: **Qual o produto mais vendido nos últimos 3 meses do histórico?**
+
+Para isolar esse dado, utilizei uma subquery filtrando o período entre `31/03/2014` e `30/06/2014`:
+
+```sql
+SELECT
+    temptable.Chave_Produto,
+    SUM(temptable.Quantidade_Vendida) AS Total_Itens_Vendidos
+FROM (
+    SELECT
+        soh.OrderDate  AS Chave_Tempo,
+        sod.ProductID  AS Chave_Produto,
+        sod.OrderQty   AS Quantidade_Vendida
+    FROM AdventureWorks2022.Sales.SalesOrderDetail sod
+    JOIN AdventureWorks2022.Sales.SalesOrderHeader soh
+        ON soh.SalesOrderID = sod.SalesOrderID
+) AS temptable
+WHERE temptable.Chave_Tempo BETWEEN '20140331' AND '20140630 23:59:59'
+GROUP BY temptable.Chave_Produto
+ORDER BY Total_Itens_Vendidos DESC;
+```
+
+![Volumetria por ID de produto](/blog_2.0/images/sql_day_2/total_item_sold.png)
+
+Como os IDs numéricos não trazem contexto suficiente para tomada de decisão, adicionei um `JOIN` com `Production.Product` para recuperar a descrição comercial do item:
+
+```sql
+SELECT
+    tempTable.Chave_Produto AS ID_Produto,
+    p.Name                  AS Nome_Produto,
+    SUM(tempTable.Quantidade_Vendida) AS Total_Itens_Vendidos
+FROM (
+    SELECT
+        soh.OrderDate  AS Chave_Tempo,
+        sod.ProductID  AS Chave_Produto,
+        sod.OrderQty   AS Quantidade_Vendida
+    FROM AdventureWorks2022.Sales.SalesOrderDetail sod
+    JOIN AdventureWorks2022.Sales.SalesOrderHeader soh
+        ON soh.SalesOrderID = sod.SalesOrderID
+) AS tempTable
+JOIN AdventureWorks2022.Production.Product p 
+    ON p.ProductID = tempTable.Chave_Produto
+WHERE tempTable.Chave_Tempo BETWEEN '20140331' AND '20140630 23:59:59'
+GROUP BY tempTable.Chave_Produto, p.Name
+ORDER BY Total_Itens_Vendidos DESC;
+```
+
+![Ranking de produtos com nome e volume de vendas](/blog_2.0/images/sql_day_2/most_sold_product_3months.png)
+
+## 4. Análise Inversa: Produtos Sem Vendas (CTE + LEFT JOIN)
+
+Seguindo a lógica oposta: **quais produtos cadastrados no sistema não registraram nenhuma venda nesse mesmo trimestre?**
+
+Para estruturar essa consulta, converti a busca anterior em uma **CTE** chamada `ProdutosVendidos_3_meses` e apliquei um `LEFT JOIN` com a tabela geral de produtos, filtrando onde a chave da CTE resulta em `NULL`:
+
+```sql
+WITH ProdutosVendidos_3_meses AS (
+    SELECT
+        tempTable.Chave_Produto AS ID_produto,
+        p.Name                  AS Nome_Produto,
+        SUM(tempTable.Quantidade_Vendida) AS Total_Itens_Vendidos
+    FROM (
+        SELECT
+            soh.OrderDate  AS Chave_Tempo,
+            sod.ProductID  AS Chave_Produto,
+            sod.OrderQty   AS Quantidade_Vendida
+        FROM AdventureWorks2022.Sales.SalesOrderDetail sod
+        JOIN AdventureWorks2022.Sales.SalesOrderHeader soh
+            ON soh.SalesOrderID = sod.SalesOrderID
+    ) AS tempTable
+    JOIN AdventureWorks2022.Production.Product p 
+        ON p.ProductID = tempTable.Chave_Produto
+    WHERE tempTable.Chave_Tempo BETWEEN '20140331' AND '20140630 23:59:59'
+    GROUP BY tempTable.Chave_Produto, p.Name
+)
+
+SELECT
+    p.ProductID,
+    p.Name
+FROM AdventureWorks2022.Production.Product p
+LEFT JOIN ProdutosVendidos_3_meses pv 
+    ON pv.ID_produto = p.ProductID
+WHERE pv.ID_produto IS NULL
+ORDER BY p.ProductID, p.Name;
+```
+
+![Lista de produtos sem movimentação no período](/blog_2.0/images/sql_day_2/left_on_stock.png)
+
+## 5. Filtrando Apenas Produtos de Catálogo
+
+Analisando a lista gerada, notam-se itens genéricos e peças brutas de fabricação (esferas, parafusos, rolamentos). Esses itens estão cadastrados no banco mas não são comercializados diretamente no e-commerce.
+
+Para isolar apenas os produtos de catálogo destinados à venda, encadeei as tabelas de subcategorias e categorias:
+
+1. `Production.Product` → `Production.ProductSubcategory` via `ProductSubcategoryID`
+2. `Production.ProductSubcategory` → `Production.ProductCategory` via `ProductCategoryID`
+
+```sql
+WITH ProdutosVendidos_3_meses AS (
+    SELECT
+        sod.ProductID          AS ID_produto,
+        SUM(sod.OrderQty)      AS Total_Itens_Vendidos
+    FROM AdventureWorks2022.Sales.SalesOrderDetail sod
+    JOIN AdventureWorks2022.Sales.SalesOrderHeader soh 
+        ON soh.SalesOrderID = sod.SalesOrderID
+    WHERE soh.OrderDate BETWEEN '20140331' AND '20140630 23:59:59'
+    GROUP BY sod.ProductID
+)
+
+SELECT
+    p.ProductID,
+    p.Name    AS Nome_Produto,
+    ps.Name   AS Subcategoria,
+    pc.Name   AS Categoria
+FROM AdventureWorks2022.Production.Product p
+INNER JOIN AdventureWorks2022.Production.ProductSubcategory ps 
+    ON p.ProductSubcategoryID = ps.ProductSubcategoryID
+INNER JOIN AdventureWorks2022.Production.ProductCategory pc 
+    ON ps.ProductCategoryID = pc.ProductCategoryID
+LEFT JOIN ProdutosVendidos_3_meses pv 
+    ON pv.ID_produto = p.ProductID
+WHERE pv.ID_produto IS NULL
+ORDER BY pc.Name, ps.Name, p.Name;
+```
+
+![Produtos de catálogo sem vendas no trimestre](/blog_2.0/images/sql_day_2/least_sold_products.png)
+
+## 6. Conclusões da Análise
+
+A partir do refinamento por categorias, a análise indicou que os seguintes itens de catálogo ficaram estagnados no último trimestre:
+
+- **Bicicletas (Bikes):** Modelos de alto valor agregado sem saída registrada, como as linhas `Road-150`, `Road-450`, `Road-650` e a série `Mountain-100`.
+- **Componentes (Components):** Quadros de alta performance (`HL Road Frame`), garfos (`Forks`) e conjuntos de rodas vendidos separadamente para customização.
+- **Vestuário e Acessórios (Clothing & Accessories):** Meias de Mountain Bike, bermudas masculinas, bombas de ar e lanternas (`Headlights`).
