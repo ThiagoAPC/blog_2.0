@@ -5,6 +5,8 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import TOC from '../../components/TOC.astro';
 import TagPill from '../../components/TagPill.astro';
 import Callout from '../../components/Callout.astro';
+import SeriesList from '../../components/SeriesList.astro';
+import SeriesNav from '../../components/SeriesNav.astro';
 import { formatDate } from '../../utils/date';
 import { url } from '../../utils/url';
 
@@ -18,7 +20,34 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
 const { post } = Astro.props;
 const { Content, headings } = await render(post);
-const { title, description, pubDate, updatedDate, tags, readingTime } = post.data;
+const { title, description, pubDate, updatedDate, tags, readingTime, series, seriesPart } = post.data;
+
+// Resolve series data at build time
+let seriesParts: Awaited<ReturnType<typeof getCollection>> = [];
+let seriesParent: Awaited<ReturnType<typeof getCollection>>[number] | undefined;
+let seriesPrev: typeof seriesParent;
+let seriesNext: typeof seriesParent;
+let totalParts = 0;
+
+if (series) {
+  const all = await getCollection('posts', ({ data }) => !data.draft && data.series === series);
+  if (!seriesPart) {
+    // Parent post: collect all children sorted by part number
+    seriesParts = all
+      .filter((p) => p.data.seriesPart != null)
+      .sort((a, b) => (a.data.seriesPart ?? 0) - (b.data.seriesPart ?? 0));
+  } else {
+    // Child post: find parent and adjacent siblings
+    seriesParent = all.find((p) => p.data.seriesPart == null);
+    const siblings = all
+      .filter((p) => p.data.seriesPart != null)
+      .sort((a, b) => (a.data.seriesPart ?? 0) - (b.data.seriesPart ?? 0));
+    totalParts = siblings.length;
+    const idx = siblings.findIndex((p) => p.slug === post.slug);
+    seriesPrev = idx > 0 ? siblings[idx - 1] : undefined;
+    seriesNext = idx < siblings.length - 1 ? siblings[idx + 1] : undefined;
+  }
+}
 ---
 
 <BaseLayout title={title} description={description}>
@@ -80,10 +109,26 @@ const { title, description, pubDate, updatedDate, tags, readingTime } = post.dat
     <!-- Table of Contents -->
     <TOC headings={headings} />
 
+    <!-- Series child nav (shown at top of content for series parts) -->
+    {series && seriesPart && seriesParent && (
+      <SeriesNav
+        parent={seriesParent}
+        seriesPart={seriesPart}
+        totalParts={totalParts}
+        prev={seriesPrev}
+        next={seriesNext}
+      />
+    )}
+
     <!-- Post content -->
     <div class="prose max-w-none" data-pagefind-body>
       <Content components={{ Callout }} />
     </div>
+
+    <!-- Series parent index (auto-list of parts after content) -->
+    {series && !seriesPart && seriesParts.length > 0 && (
+      <SeriesList parts={seriesParts} />
+    )}
 
     <!-- Copy code button injection -->
     <script is:inline>

@@ -12,6 +12,8 @@ const posts = defineCollection({
     draft: z.boolean().default(false),
     lang: z.enum(['pt', 'en']).default('pt'),
     readingTime: z.number().optional(),
+    series: z.string().optional(),
+    seriesPart: z.number().optional(),
   }),
 });
 
